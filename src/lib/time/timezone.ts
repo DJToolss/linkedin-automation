@@ -11,8 +11,13 @@ export function isValidIanaTimeZone(timeZone: string): boolean {
 }
 
 export function listSupportedTimeZones(): string[] {
-  if (typeof Intl.supportedValuesOf === "function") return Intl.supportedValuesOf("timeZone");
-  return ["UTC"];
+  // "UTC" is a valid IANA zone (isValidIanaTimeZone accepts it, and it's the
+  // fallback default used throughout the composer/settings UI), but ICU's
+  // supportedValuesOf("timeZone") list doesn't always include it as its own
+  // entry — put it first explicitly rather than relying on a value the
+  // caller's <select> options might otherwise silently omit.
+  const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [];
+  return zones.includes("UTC") ? zones : ["UTC", ...zones];
 }
 
 function offsetMsForZoneAt(instant: Date, timeZone: string): number {

@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
@@ -7,6 +9,7 @@ import { getLinkedInRedirectUri } from "@/lib/linkedin/config";
 import { upsertConnection } from "@/lib/linkedin/connection";
 import { LinkedInOAuthError, exchangeAuthorizationCode, fetchMemberIdentity } from "@/lib/linkedin/oauth";
 import { consumeOAuthState } from "@/lib/linkedin/state";
+import { logger } from "@/lib/logger";
 
 const DENIAL_ERRORS = new Set(["user_cancelled_login", "user_cancelled_authorize", "access_denied"]);
 
@@ -19,10 +22,12 @@ function toSettings(appUrl: string, params: Record<string, string>) {
 export async function GET(request: NextRequest) {
   const appUrl = getAppUrlEnv().NEXT_PUBLIC_APP_URL;
   const userId = await requireAuthenticatedUserId();
+  const log = logger.child({ requestId: randomUUID(), scope: "linkedin_callback", userId });
   const params = request.nextUrl.searchParams;
 
   const providerError = params.get("error");
   if (providerError) {
+    log.warn("LinkedIn returned an authorization error", { providerError });
     return toSettings(appUrl, { linkedin_error: DENIAL_ERRORS.has(providerError) ? "denied" : "provider" });
   }
 
@@ -34,6 +39,7 @@ export async function GET(request: NextRequest) {
   // and forged callbacks in one atomic step (implementation.MD correction #3).
   const claimed = await consumeOAuthState(state);
   if (!claimed || claimed.userId !== userId) {
+    log.warn("rejected a replayed, expired, or mismatched OAuth state");
     return toSettings(appUrl, { linkedin_error: "invalid_state" });
   }
 
@@ -56,9 +62,10 @@ export async function GET(request: NextRequest) {
       accessToken: token.accessToken,
       accessTokenExpiresAt: token.expiresAt,
     });
+    log.info("LinkedIn connection established");
   } catch (error) {
     if (!(error instanceof LinkedInOAuthError)) throw error;
-    console.error("LinkedIn connection failed:", error.message);
+    log.error("LinkedIn connection failed", { error: error.message });
     return toSettings(appUrl, { linkedin_error: "exchange_failed" });
   }
 

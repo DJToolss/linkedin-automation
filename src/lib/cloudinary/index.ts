@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { v2 as cloudinary } from "cloudinary";
 
 import { getCloudinaryEnv } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 let configured = false;
 function client() {
@@ -47,6 +48,6 @@ export async function deletePostImage(publicId: string): Promise<void> {
   try {
     await client().uploader.destroy(publicId, { resource_type: "image" });
   } catch (error) {
-    console.error("Cloudinary delete failed for", publicId, error);
+    logger.error("Cloudinary delete failed", { publicId, error: error instanceof Error ? error.message : String(error) });
   }
 }
