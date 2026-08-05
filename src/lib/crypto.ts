@@ -7,7 +7,7 @@ import {
   randomBytes,
 } from "node:crypto";
 
-import { getEnv } from "@/lib/env";
+import { getEncryptionEnv } from "@/lib/env";
 
 const ENVELOPE_VERSION = "v1";
 const IV_BYTES = 12;
@@ -21,7 +21,7 @@ export class EncryptionError extends Error {
 }
 
 function getAesKey(): Buffer {
-  const masterKey = Buffer.from(getEnv().ENCRYPTION_KEY, "base64");
+  const masterKey = Buffer.from(getEncryptionEnv().ENCRYPTION_KEY, "base64");
 
   if (masterKey.length === 32) return masterKey;
 
