@@ -2,7 +2,7 @@ import "server-only";
 
 import { eq, sql } from "drizzle-orm";
 
-import { encrypt } from "@/lib/crypto";
+import { decrypt, encrypt } from "@/lib/crypto";
 import { getDb } from "@/lib/db";
 import { linkedinConnections } from "@/lib/db/schema";
 
@@ -100,4 +100,33 @@ export async function disconnectConnection(userId: string): Promise<void> {
     update posts set status = 'requires_reconnect', updated_at = now()
     where user_id = ${userId} and status = 'scheduled'
   `);
+}
+
+export type UsableConnection = { personUrn: string; accessToken: string };
+
+/**
+ * Decrypted-token accessor for the publisher only — never expose this to a
+ * route response. Re-validates status and expiry at call time rather than
+ * trusting an earlier read, so an expired or revoked connection can never
+ * reach a publish attempt (implementation.MD Phase 3 exit criterion /
+ * Phase 5 item 3).
+ */
+export async function getUsableConnection(userId: string): Promise<UsableConnection | null> {
+  const [connection] = await getDb()
+    .select({
+      status: linkedinConnections.status,
+      personUrn: linkedinConnections.personUrn,
+      accessTokenEnc: linkedinConnections.accessTokenEnc,
+      accessTokenExpiresAt: linkedinConnections.accessTokenExpiresAt,
+    })
+    .from(linkedinConnections)
+    .where(eq(linkedinConnections.userId, userId))
+    .limit(1);
+  if (!connection || connection.status !== "connected" || connection.accessTokenExpiresAt <= new Date()) return null;
+  return { personUrn: connection.personUrn, accessToken: decrypt(connection.accessTokenEnc) };
+}
+
+/** Flips a connection to `requires_reconnect` once LinkedIn itself has rejected the token (401/403), not just on locally-computed expiry. */
+export async function markConnectionRequiresReconnect(userId: string): Promise<void> {
+  await getDb().update(linkedinConnections).set({ status: "requires_reconnect", updatedAt: new Date() }).where(eq(linkedinConnections.userId, userId));
 }

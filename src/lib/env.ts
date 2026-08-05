@@ -51,6 +51,7 @@ const authEnvSchema = runtimeEnvSchema.pick({
 const databaseEnvSchema = runtimeEnvSchema.pick({ DATABASE_URL: true });
 const encryptionEnvSchema = runtimeEnvSchema.pick({ ENCRYPTION_KEY: true });
 const appUrlEnvSchema = runtimeEnvSchema.pick({ NEXT_PUBLIC_APP_URL: true });
+const cronEnvSchema = runtimeEnvSchema.pick({ CRON_SECRET: true });
 const cloudinaryEnvSchema = runtimeEnvSchema.pick({
   CLOUDINARY_CLOUD_NAME: true,
   CLOUDINARY_API_KEY: true,
@@ -75,6 +76,10 @@ export function getEncryptionEnv() {
 
 export function getAppUrlEnv() {
   return appUrlEnvSchema.parse({ NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL });
+}
+
+export function getCronEnv() {
+  return cronEnvSchema.parse({ CRON_SECRET: process.env.CRON_SECRET });
 }
 
 export function getCloudinaryEnv() {
