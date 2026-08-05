@@ -8,7 +8,8 @@
 | 1 — foundations and data model | Implemented; database application pending | Server configuration, crypto, Drizzle schema, and the initial migration are present. Run `npm run db:migrate` against the intended database to complete the operational checkpoint. |
 | 2 — authentication and ownership | Implemented | Auth.js credentials flow, registration/login/logout, protected navigation, server-side session checks, and user-scoped data access helpers are in place. `npm run lint` and `npm run build` pass. |
 | 3 — LinkedIn connection lifecycle | Code-ready; external verification pending | `/api/linkedin/authorize` and `/api/linkedin/callback`, atomic OAuth state consumption, encrypted connection upsert, and a `/settings` page for app credentials, connection status, reconnect, and disconnect are in place. Live verification is blocked on the same Phase 0 external steps (real LinkedIn app + test member). `npm run lint` and `npm run build` pass. |
-| 4–6 | Not started | Implement in order after Phase 0 verification, the Phase 1 database migration, and a live Phase 3 connection test. |
+| 4 — composer, uploads, and post management | Implemented; publish path pending | `/posts`, `/posts/new`, `/posts/[id]/edit`, ownership- and status-scoped create/update/delete (`src/lib/posts/posts.ts`), signature-based image validation, and a user/UUID-scoped Cloudinary upload/delete helper are in place. `npm run lint` and `npm run build` pass. Not yet exercisable end-to-end: no post has actually reached LinkedIn, since that requires Phase 0/3's live connection and Phase 5's publisher. |
+| 5–6 | Not started | Implement in order after Phase 0 verification, the Phase 1 database migration, and a live Phase 3 connection test. |
 
 ## Current project assessment
 

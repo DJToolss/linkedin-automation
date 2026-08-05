@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AppHeader } from "@/app/_components/app-header";
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
 import { getAppUrlEnv } from "@/lib/env";
 import { getLinkedInAppSummary } from "@/lib/linkedin/app-credentials";
@@ -40,10 +41,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-12">
-      <header className="border-b pb-6">
-        <p className="text-sm font-medium text-blue-700">LinkedIn Automation</p>
-        <h1 className="mt-1 text-3xl font-semibold">Settings</h1>
-      </header>
+      <AppHeader title="Settings" />
 
       {errorKey && (
         <p className="mt-6 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
