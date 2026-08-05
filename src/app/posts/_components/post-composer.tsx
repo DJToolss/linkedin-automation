@@ -50,7 +50,7 @@ export function PostComposer({
       <div>
         <label className="block text-sm font-medium" htmlFor="content">Post content</label>
         <textarea
-          className="mt-1 w-full rounded border px-3 py-2"
+          className="mt-1 w-full rounded border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder:text-zinc-400"
           id="content"
           maxLength={MAX_POST_CONTENT_LENGTH}
           name="content"
@@ -59,7 +59,7 @@ export function PostComposer({
           rows={6}
           value={content}
         />
-        <p className="mt-1 text-xs text-zinc-500">{content.length}/{MAX_POST_CONTENT_LENGTH} characters</p>
+        <p className="mt-1 text-xs text-zinc-600">{content.length}/{MAX_POST_CONTENT_LENGTH} characters</p>
         <FieldError errors={state.fieldErrors?.content} />
       </div>
 
@@ -67,7 +67,7 @@ export function PostComposer({
         <div>
           <label className="block text-sm font-medium" htmlFor="scheduledAt">Date and time</label>
           <input
-            className="mt-1 w-full rounded border px-3 py-2"
+            className="mt-1 w-full rounded border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder:text-zinc-400"
             defaultValue={existing?.scheduledAtLocal}
             id="scheduledAt"
             name="scheduledAt"
@@ -79,7 +79,7 @@ export function PostComposer({
         <div>
           <label className="block text-sm font-medium" htmlFor="timezone">Time zone</label>
           <select
-            className="mt-1 w-full rounded border px-3 py-2"
+            className="mt-1 w-full rounded border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder:text-zinc-400"
             defaultValue={existing?.timezone ?? "UTC"}
             id="timezone"
             name="timezone"
@@ -97,7 +97,7 @@ export function PostComposer({
         <label className="block text-sm font-medium" htmlFor="image">Image (optional)</label>
         <input
           accept="image/png,image/jpeg,image/gif,image/webp"
-          className="mt-1 w-full text-sm"
+          className="mt-1 w-full text-sm text-zinc-900"
           id="image"
           name="image"
           onChange={handleImageChange}

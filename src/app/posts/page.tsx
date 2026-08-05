@@ -43,7 +43,7 @@ export default async function PostsPage() {
                 <div>
                   <p className="text-sm font-medium">{STATUS_LABEL[post.status] ?? post.status}</p>
                   <p className="mt-1 line-clamp-2 text-sm text-zinc-700">{post.content}</p>
-                  <p className="mt-2 text-xs text-zinc-500">
+                  <p className="mt-2 text-xs text-zinc-600">
                     {post.scheduledAt ? `Scheduled for ${post.scheduledAt.toLocaleString()} (${post.timezone})` : "Not scheduled"}
                   </p>
                   {post.errorMessage && <p className="mt-1 text-xs text-red-700">{post.errorMessage}</p>}

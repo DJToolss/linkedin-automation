@@ -66,7 +66,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           <div className="mt-4 flex items-center justify-between rounded border bg-white px-4 py-3">
             <div>
               <p className="text-sm font-medium">Client ID: {app.clientId}</p>
-              <p className="text-xs text-zinc-500">Saved {app.updatedAt.toLocaleString()}</p>
+              <p className="text-xs text-zinc-600">Saved {app.updatedAt.toLocaleString()}</p>
             </div>
             <form action={removeLinkedInAppAction}>
               <button className="rounded border px-3 py-1.5 text-sm font-medium text-red-700" type="submit">
@@ -117,7 +117,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           </div>
         )}
 
-        <p className="mt-4 text-xs text-zinc-500">
+        <p className="mt-4 text-xs text-zinc-600">
           Standard LinkedIn tokens are not refreshed automatically. Reconnect before the expiry date above to avoid
           interrupting scheduled posts.
         </p>
