@@ -76,6 +76,7 @@ export const linkedinConnections = pgTable(
       .notNull()
       .references(() => linkedinApps.id, { onDelete: "cascade" }),
     personUrn: text("person_urn").notNull(),
+    displayName: text("display_name"),
     accessTokenEnc: text("access_token_enc").notNull(),
     accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }).notNull(),
     status: connectionStatus("status").notNull().default("connected"),

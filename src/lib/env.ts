@@ -50,6 +50,7 @@ const authEnvSchema = runtimeEnvSchema.pick({
 });
 const databaseEnvSchema = runtimeEnvSchema.pick({ DATABASE_URL: true });
 const encryptionEnvSchema = runtimeEnvSchema.pick({ ENCRYPTION_KEY: true });
+const appUrlEnvSchema = runtimeEnvSchema.pick({ NEXT_PUBLIC_APP_URL: true });
 const cloudinaryEnvSchema = runtimeEnvSchema.pick({
   CLOUDINARY_CLOUD_NAME: true,
   CLOUDINARY_API_KEY: true,
@@ -70,6 +71,10 @@ export function getDatabaseEnv() {
 
 export function getEncryptionEnv() {
   return encryptionEnvSchema.parse({ ENCRYPTION_KEY: process.env.ENCRYPTION_KEY });
+}
+
+export function getAppUrlEnv() {
+  return appUrlEnvSchema.parse({ NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL });
 }
 
 export function getCloudinaryEnv() {

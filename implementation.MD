@@ -7,7 +7,8 @@
 | 0 — LinkedIn feasibility | Code-ready; external verification pending | API configuration and the runbook are in `PHASE_0.md`. It requires a LinkedIn developer app, test member consent, and real text/image API calls. |
 | 1 — foundations and data model | Implemented; database application pending | Server configuration, crypto, Drizzle schema, and the initial migration are present. Run `npm run db:migrate` against the intended database to complete the operational checkpoint. |
 | 2 — authentication and ownership | Implemented | Auth.js credentials flow, registration/login/logout, protected navigation, server-side session checks, and user-scoped data access helpers are in place. `npm run lint` and `npm run build` pass. |
-| 3–6 | Not started | Implement in order after the Phase 0 verification and Phase 1 database migration. |
+| 3 — LinkedIn connection lifecycle | Code-ready; external verification pending | `/api/linkedin/authorize` and `/api/linkedin/callback`, atomic OAuth state consumption, encrypted connection upsert, and a `/settings` page for app credentials, connection status, reconnect, and disconnect are in place. Live verification is blocked on the same Phase 0 external steps (real LinkedIn app + test member). `npm run lint` and `npm run build` pass. |
+| 4–6 | Not started | Implement in order after Phase 0 verification, the Phase 1 database migration, and a live Phase 3 connection test. |
 
 ## Current project assessment
 
