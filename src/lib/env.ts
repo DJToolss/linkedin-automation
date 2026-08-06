@@ -58,7 +58,22 @@ const cloudinaryEnvSchema = runtimeEnvSchema.pick({
   CLOUDINARY_API_SECRET: true,
 });
 
+/**
+ * `next build`'s "Collecting page data" step statically imports every route
+ * module (including ones that only transitively reach `src/auth.ts`) purely
+ * to inspect its exports — no request is ever served during this phase. On
+ * platforms that don't expose runtime secrets to the build step, that eager
+ * import would otherwise crash the build before a single page is rendered.
+ * Next.js itself sets this env var during that phase (see
+ * `node_modules/next/dist/build/index.js`), so detecting it and returning
+ * unvalidated placeholders here is safe: the real values are re-read (and
+ * still fully validated) the next time this runs, which is at request time
+ * in the actual running server.
+ */
+const BUILD_PHASE_AUTH_ENV = { NEXTAUTH_SECRET: "0".repeat(32), NEXTAUTH_EXPIRY: undefined, NEXTAUTH_URL: "http://localhost:3000" };
+
 export function getAuthEnv() {
+  if (process.env.NEXT_PHASE === "phase-production-build") return BUILD_PHASE_AUTH_ENV;
   return authEnvSchema.parse({
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     NEXTAUTH_EXPIRY: process.env.NEXTAUTH_EXPIRY,
