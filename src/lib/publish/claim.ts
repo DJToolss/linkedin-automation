@@ -43,6 +43,28 @@ export async function claimDuePosts(limit: number = CLAIM_BATCH_SIZE): Promise<C
   return result.rows;
 }
 
+/** Grace window for timer-triggered claims — covers sub-second clock skew between Node and Postgres. */
+export const TIMER_CLAIM_GRACE_SECONDS = 60;
+
+/**
+ * Claims one post the scheduler timer fired for. Uses a short forward grace
+ * window so a timer that fires a few milliseconds before Postgres `now()`
+ * still claims the row; reschedules far in the future are not affected.
+ */
+export async function claimScheduledPost(postId: string): Promise<ClaimedPost | null> {
+  const result = await getDb().execute<ClaimedPost>(sql`
+    update posts
+    set status = 'publishing', claim_token = gen_random_uuid(),
+        claim_expires_at = now() + (${CLAIM_LEASE_SECONDS} * interval '1 second'),
+        updated_at = now()
+    where id = ${postId}
+      and status = 'scheduled'
+      and scheduled_at <= now() + (${TIMER_CLAIM_GRACE_SECONDS} * interval '1 second')
+    returning id, user_id as "userId", content, image_url as "imageUrl", image_public_id as "imagePublicId", claim_token as "claimToken"
+  `);
+  return result.rows[0] ?? null;
+}
+
 export type AbandonedLease = { id: string; claimToken: string };
 
 export async function findAbandonedLeases(): Promise<AbandonedLease[]> {

@@ -7,9 +7,13 @@ import { getUsableConnection, markConnectionRequiresReconnect } from "@/lib/link
 import { fetchPostImageBytes, initializeImageUpload, uploadImageBytes } from "@/lib/linkedin/images";
 import { createLinkedInPost } from "@/lib/linkedin/posts-api";
 import { LinkedInPublishError, type FailureCategory } from "@/lib/linkedin/publish-error";
+import { eq } from "drizzle-orm";
+
+import { getDb } from "@/lib/db";
+import { posts } from "@/lib/db/schema";
 import { type Logger, logger } from "@/lib/logger";
 import { resolveAttempt, startAttempt } from "@/lib/publish/attempts";
-import { claimDuePosts, findAbandonedLeases, recoverAbandonedLease, type ClaimedPost } from "@/lib/publish/claim";
+import { claimDuePosts, claimScheduledPost, findAbandonedLeases, recoverAbandonedLease, type ClaimedPost } from "@/lib/publish/claim";
 
 export const MAX_ATTEMPTS = 5;
 export const RETRY_BASE_MS = 60 * 1000;
@@ -41,6 +45,8 @@ async function handleFailure(
     const nextScheduledAt = new Date(Date.now() + computeRetryBackoffMs(attemptNumber));
     log.warn("post failed, retry scheduled", { errorCode, errorMessage, attemptNumber, nextScheduledAt });
     await resolveAttempt(post.id, post.claimToken, attemptId, { kind: "retry_scheduled", nextScheduledAt, errorCode, errorMessage });
+    const { schedulePostPublish } = await import("@/lib/publish/scheduler");
+    schedulePostPublish(post.id, nextScheduledAt);
     return;
   }
 
@@ -102,6 +108,36 @@ async function processClaimedPost(post: ClaimedPost, requestLog: Logger): Promis
 
 export type PublishRunSummary = { requestId: string; recovered: number; claimed: number; succeeded: number; failed: number };
 
+const TIMER_CLAIM_RETRY_MS = 2_000;
+const TIMER_CLAIM_MAX_ATTEMPTS = 5;
+
+async function claimWithTimerRetries(postId: string, log: Logger): Promise<ClaimedPost | null> {
+  for (let attempt = 1; attempt <= TIMER_CLAIM_MAX_ATTEMPTS; attempt++) {
+    const claimed = await claimScheduledPost(postId);
+    if (claimed) return claimed;
+
+    if (attempt < TIMER_CLAIM_MAX_ATTEMPTS) {
+      log.warn("scheduled post not yet claimable, retrying", { postId, attempt, retryInMs: TIMER_CLAIM_RETRY_MS });
+      await new Promise((resolve) => setTimeout(resolve, TIMER_CLAIM_RETRY_MS));
+    }
+  }
+
+  log.error("scheduled post was not claimable after timer fired", { postId, attempts: TIMER_CLAIM_MAX_ATTEMPTS });
+  const [row] = await getDb()
+    .select({ status: posts.status, scheduledAt: posts.scheduledAt })
+    .from(posts)
+    .where(eq(posts.id, postId))
+    .limit(1);
+  if (row) {
+    log.error("scheduled post state at claim failure", {
+      postId,
+      status: row.status,
+      scheduledAt: row.scheduledAt?.toISOString() ?? null,
+    });
+  }
+  return null;
+}
+
 export async function runPublishBatch(requestId: string = randomUUID()): Promise<PublishRunSummary> {
   const log = logger.child({ requestId, scope: "publisher" });
   log.info("publish batch started");
@@ -129,6 +165,39 @@ export async function runPublishBatch(requestId: string = randomUUID()): Promise
     claimed: claimed.length,
     succeeded: outcomes.filter(Boolean).length,
     failed: outcomes.filter((ok) => !ok).length,
+  };
+  log.info("publish batch finished", summary);
+  return summary;
+}
+
+/** Publishes one timer-targeted post, with retries if the DB clock is slightly behind Node. */
+export async function runPublishBatchForPost(postId: string, requestId: string = randomUUID()): Promise<PublishRunSummary> {
+  const log = logger.child({ requestId, scope: "publisher", postId });
+  log.info("publish batch started");
+
+  const abandoned = await findAbandonedLeases();
+  if (abandoned.length > 0) log.warn("recovering abandoned leases", { count: abandoned.length });
+  await mapWithConcurrency(abandoned, PROCESS_CONCURRENCY, recoverAbandonedLease);
+
+  const claimed = await claimWithTimerRetries(postId, log);
+  let succeeded = 0;
+  let failed = 0;
+
+  if (claimed) {
+    const ok = await processClaimedPost(claimed, log).catch((error) => {
+      log.error("unhandled error while publishing post", { error: error instanceof Error ? error.message : String(error) });
+      return false;
+    });
+    if (ok) succeeded = 1;
+    else failed = 1;
+  }
+
+  const summary: PublishRunSummary = {
+    requestId,
+    recovered: abandoned.length,
+    claimed: claimed ? 1 : 0,
+    succeeded,
+    failed,
   };
   log.info("publish batch finished", summary);
   return summary;
