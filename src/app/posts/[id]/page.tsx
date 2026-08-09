@@ -46,7 +46,11 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
           </div>
         </dl>
 
-        <div className="mt-6 whitespace-pre-wrap text-sm leading-relaxed text-zinc-900">{post.content}</div>
+        <div className="mt-6 space-y-3">
+          {post.heading?.trim() && <p className="text-base font-bold leading-relaxed text-zinc-900">{post.heading.trim()}</p>}
+          {post.subHeading?.trim() && <p className="text-sm font-medium italic text-zinc-700">{post.subHeading.trim()}</p>}
+          {post.content.trim() && <div className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-900">{post.content.trim()}</div>}
+        </div>
 
         {post.imageUrl && (
           <div className="mt-6">

@@ -1,9 +1,15 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useActionState, useState } from "react";
 
 import type { PostFormState } from "@/app/posts/actions";
-import { MAX_POST_CONTENT_LENGTH } from "@/lib/posts/constants";
+import { ImageUploader } from "@/app/posts/_components/image-uploader";
+import { TimezonePicker } from "@/app/posts/_components/timezone-picker";
+import {
+  MAX_DESCRIPTION_LENGTH,
+  MAX_HEADING_LENGTH,
+  MAX_SUBHEADING_LENGTH,
+} from "@/lib/posts/constants";
 
 const initialState: PostFormState = {};
 
@@ -11,7 +17,28 @@ function FieldError({ errors }: { errors?: string[] }) {
   return errors?.length ? <p className="mt-1 text-sm text-red-700">{errors[0]}</p> : null;
 }
 
-type ExistingPost = { content: string; scheduledAtLocal: string; timezone: string; imageUrl: string | null };
+type ExistingPost = {
+  heading: string;
+  subHeading: string;
+  content: string;
+  scheduledAtLocal: string;
+  timezone: string;
+  imageUrl: string | null;
+};
+
+function LinkedInPreview({ heading, subHeading, description }: { heading: string; subHeading: string; description: string }) {
+  if (!heading.trim() && !subHeading.trim() && !description.trim()) {
+    return <p className="text-sm text-zinc-500">Your LinkedIn preview will appear here.</p>;
+  }
+
+  return (
+    <div className="space-y-3 text-sm leading-relaxed text-zinc-900">
+      {heading.trim() && <p className="text-base font-bold">{heading.trim()}</p>}
+      {subHeading.trim() && <p className="text-sm font-medium italic text-zinc-700">{subHeading.trim()}</p>}
+      {description.trim() && <p className="whitespace-pre-wrap">{description.trim()}</p>}
+    </div>
+  );
+}
 
 export function PostComposer({
   action,
@@ -25,42 +52,69 @@ export function PostComposer({
   submitLabel: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
+  const [heading, setHeading] = useState(existing?.heading ?? "");
+  const [subHeading, setSubHeading] = useState(existing?.subHeading ?? "");
   const [content, setContent] = useState(existing?.content ?? "");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(existing?.imageUrl ?? null);
-  const [removeImage, setRemoveImage] = useState(false);
-  const timezoneSelectRef = useRef<HTMLSelectElement>(null);
-
-  // The <select> is uncontrolled; this only synchronizes it with the
-  // browser's detected zone once on mount, so React state never needs to
-  // track a value the form doesn't otherwise read from anywhere else.
-  useEffect(() => {
-    if (existing || !timezoneSelectRef.current) return; // don't override an explicit edit target
-    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (detected && timeZones.includes(detected)) timezoneSelectRef.current.value = detected;
-  }, [existing, timeZones]);
-
-  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    setRemoveImage(false);
-    setPreviewUrl(file ? URL.createObjectURL(file) : existing?.imageUrl ?? null);
-  }
 
   return (
     <form action={formAction} className="space-y-5">
+      <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-sm text-zinc-700">
+        LinkedIn does not support native bold in the API. Heading and subheading are styled with Unicode characters so they appear bold and italic on LinkedIn.
+      </div>
+
       <div>
-        <label className="block text-sm font-medium" htmlFor="content">Post content</label>
+        <label className="block text-sm font-medium" htmlFor="heading">Heading (bold on LinkedIn)</label>
+        <input
+          className="mt-1 w-full rounded border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder:text-zinc-400"
+          id="heading"
+          maxLength={MAX_HEADING_LENGTH}
+          name="heading"
+          onChange={(event) => setHeading(event.target.value)}
+          placeholder="Why System Design Matters"
+          type="text"
+          value={heading}
+        />
+        <p className="mt-1 text-xs text-zinc-600">{heading.length}/{MAX_HEADING_LENGTH} characters</p>
+        <FieldError errors={state.fieldErrors?.heading} />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium" htmlFor="subHeading">Subheading (italic on LinkedIn)</label>
+        <input
+          className="mt-1 w-full rounded border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder:text-zinc-400"
+          id="subHeading"
+          maxLength={MAX_SUBHEADING_LENGTH}
+          name="subHeading"
+          onChange={(event) => setSubHeading(event.target.value)}
+          placeholder="Series: System Design from First Principles | Post 1 of 70"
+          type="text"
+          value={subHeading}
+        />
+        <p className="mt-1 text-xs text-zinc-600">{subHeading.length}/{MAX_SUBHEADING_LENGTH} characters</p>
+        <FieldError errors={state.fieldErrors?.subHeading} />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium" htmlFor="content">Description</label>
         <textarea
           className="mt-1 w-full rounded border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder:text-zinc-400"
           id="content"
-          maxLength={MAX_POST_CONTENT_LENGTH}
+          maxLength={MAX_DESCRIPTION_LENGTH}
           name="content"
           onChange={(event) => setContent(event.target.value)}
-          required
+          placeholder="Most engineers learn to write correct code long before they learn to design systems that survive real users."
           rows={6}
           value={content}
         />
-        <p className="mt-1 text-xs text-zinc-600">{content.length}/{MAX_POST_CONTENT_LENGTH} characters</p>
+        <p className="mt-1 text-xs text-zinc-600">{content.length}/{MAX_DESCRIPTION_LENGTH} characters</p>
         <FieldError errors={state.fieldErrors?.content} />
+      </div>
+
+      <div className="rounded-xl border bg-zinc-50 p-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">LinkedIn preview</p>
+        <div className="mt-3">
+          <LinkedInPreview description={content} heading={heading} subHeading={subHeading} />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -77,45 +131,14 @@ export function PostComposer({
           <FieldError errors={state.fieldErrors?.scheduledAt} />
         </div>
         <div>
-          <label className="block text-sm font-medium" htmlFor="timezone">Time zone</label>
-          <select
-            className="mt-1 w-full rounded border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder:text-zinc-400"
-            defaultValue={existing?.timezone ?? "UTC"}
-            id="timezone"
-            name="timezone"
-            ref={timezoneSelectRef}
-          >
-            {timeZones.map((zone) => (
-              <option key={zone} value={zone}>{zone}</option>
-            ))}
-          </select>
-          <FieldError errors={state.fieldErrors?.timezone} />
+          <label className="block text-sm font-medium">Time zone</label>
+          <TimezonePicker defaultValue={existing?.timezone ?? "UTC"} error={state.fieldErrors?.timezone} timeZones={timeZones} />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium" htmlFor="image">Image (optional)</label>
-        <input
-          accept="image/png,image/jpeg,image/gif,image/webp"
-          className="mt-1 w-full text-sm text-zinc-900"
-          id="image"
-          name="image"
-          onChange={handleImageChange}
-          type="file"
-        />
-        <FieldError errors={state.fieldErrors?.image} />
-        {previewUrl && !removeImage && (
-          <div className="mt-3">
-            {/* eslint-disable-next-line @next/next/no-img-element -- previewing a locally-selected file or a Cloudinary URL, not a static asset */}
-            <img alt="Selected post image preview" className="max-h-48 rounded border" src={previewUrl} />
-            {existing?.imageUrl && (
-              <label className="mt-2 flex items-center gap-2 text-sm text-zinc-600">
-                <input name="removeImage" onChange={(event) => setRemoveImage(event.target.checked)} type="checkbox" />
-                Remove this image
-              </label>
-            )}
-          </div>
-        )}
+        <label className="block text-sm font-medium">Image (optional)</label>
+        <ImageUploader error={state.fieldErrors?.image} existingImageUrl={existing?.imageUrl} />
       </div>
 
       {state.error && <p className="text-sm text-red-700" role="alert">{state.error}</p>}

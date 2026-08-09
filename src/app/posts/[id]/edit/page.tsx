@@ -23,7 +23,14 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
       <div className="mt-8">
         <PostComposer
           action={updatePostAction.bind(null, post.id)}
-          existing={{ content: post.content, imageUrl: post.imageUrl, scheduledAtLocal, timezone }}
+          existing={{
+            heading: post.heading ?? "",
+            subHeading: post.subHeading ?? "",
+            content: post.content,
+            imageUrl: post.imageUrl,
+            scheduledAtLocal,
+            timezone,
+          }}
           submitLabel="Save changes"
           timeZones={listSupportedTimeZones()}
         />

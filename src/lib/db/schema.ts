@@ -114,6 +114,8 @@ export const posts = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    heading: text("heading"),
+    subHeading: text("sub_heading"),
     content: text("content").notNull(),
     imageUrl: text("image_url"),
     imagePublicId: text("image_public_id"),

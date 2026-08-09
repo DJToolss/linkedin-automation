@@ -6,24 +6,60 @@ import { z } from "zod";
 
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
 import { deletePostImage, uploadPostImage } from "@/lib/cloudinary";
+import { composeLinkedInCommentary, hasPostBody } from "@/lib/linkedin/commentary-format";
 import { validateImageBuffer } from "@/lib/media/image-signature";
-import { MAX_POST_CONTENT_LENGTH } from "@/lib/posts/constants";
+import {
+  MAX_DESCRIPTION_LENGTH,
+  MAX_HEADING_LENGTH,
+  MAX_POST_CONTENT_LENGTH,
+  MAX_SUBHEADING_LENGTH,
+} from "@/lib/posts/constants";
 import { createPost, deletePendingPost, getEditablePostForUser, updatePendingPost } from "@/lib/posts/posts";
 import { cancelScheduledPublish, schedulePostPublish } from "@/lib/publish/scheduler";
 import { isValidIanaTimeZone, zonedTimeToUtc } from "@/lib/time/timezone";
 
 export type PostFormState = { error?: string; fieldErrors?: Record<string, string[]> };
 
-const postSchema = z.object({
-  content: z
-    .string()
-    .trim()
-    .min(1, "Write something to post.")
-    .max(MAX_POST_CONTENT_LENGTH, `Keep posts under ${MAX_POST_CONTENT_LENGTH} characters.`),
-  scheduledAt: z.string().min(1, "Choose a date and time."),
-  timezone: z.string().min(1, "Choose a time zone.").refine(isValidIanaTimeZone, "Choose a valid time zone."),
-  removeImage: z.string().nullable().optional(),
-});
+const emptyToNull = (value: unknown) => {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+};
+
+const postSchema = z
+  .object({
+    heading: z.preprocess(emptyToNull, z.string().max(MAX_HEADING_LENGTH, `Keep the heading under ${MAX_HEADING_LENGTH} characters.`).nullable()),
+    subHeading: z.preprocess(
+      emptyToNull,
+      z.string().max(MAX_SUBHEADING_LENGTH, `Keep the subheading under ${MAX_SUBHEADING_LENGTH} characters.`).nullable(),
+    ),
+    content: z.preprocess(
+      emptyToNull,
+      z.string().max(MAX_DESCRIPTION_LENGTH, `Keep the description under ${MAX_DESCRIPTION_LENGTH} characters.`).nullable(),
+    ),
+    scheduledAt: z.string().min(1, "Choose a date and time."),
+    timezone: z.string().min(1, "Choose a time zone.").refine(isValidIanaTimeZone, "Choose a valid time zone."),
+    removeImage: z.string().nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!hasPostBody({ heading: data.heading, subHeading: data.subHeading, description: data.content ?? "" })) {
+      ctx.addIssue({ code: "custom", message: "Add a heading, subheading, or description.", path: ["content"] });
+    }
+
+    const composedLength = composeLinkedInCommentary({
+      heading: data.heading,
+      subHeading: data.subHeading,
+      description: data.content ?? "",
+    }).length;
+
+    if (composedLength > MAX_POST_CONTENT_LENGTH) {
+      ctx.addIssue({
+        code: "custom",
+        message: `The combined LinkedIn post is too long (${composedLength}/${MAX_POST_CONTENT_LENGTH} characters after formatting).`,
+        path: ["content"],
+      });
+    }
+  });
 
 type ImageReadResult = { kind: "none" } | { kind: "error"; message: string } | { kind: "ok"; buffer: Buffer; mime: string };
 
@@ -38,11 +74,23 @@ async function readImageFile(formData: FormData): Promise<ImageReadResult> {
 
 function parsePostForm(formData: FormData) {
   return postSchema.safeParse({
+    heading: formData.get("heading"),
+    subHeading: formData.get("subHeading"),
     content: formData.get("content"),
     scheduledAt: formData.get("scheduledAt"),
     timezone: formData.get("timezone"),
     removeImage: formData.get("removeImage"),
   });
+}
+
+function toPostInput(parsed: z.infer<typeof postSchema>, scheduledAtUtc: Date) {
+  return {
+    heading: parsed.heading,
+    subHeading: parsed.subHeading,
+    content: parsed.content ?? "",
+    scheduledAt: scheduledAtUtc,
+    timezone: parsed.timezone,
+  };
 }
 
 export async function createPostAction(_: PostFormState, formData: FormData): Promise<PostFormState> {
@@ -60,16 +108,11 @@ export async function createPostAction(_: PostFormState, formData: FormData): Pr
   const uploaded = image.kind === "ok" ? await uploadPostImage(userId, image.buffer, image.mime) : null;
 
   const created = await createPost(userId, {
-    content: parsed.data.content,
-    scheduledAt: scheduledAtUtc,
-    timezone: parsed.data.timezone,
+    ...toPostInput(parsed.data, scheduledAtUtc),
     imageUrl: uploaded?.url ?? null,
     imagePublicId: uploaded?.publicId ?? null,
   });
   if (!created) {
-    // The upload (if any) succeeded but the row was never created; the
-    // asset is left in place for diagnosis rather than guessed at (Phase 4
-    // item 4) — it is unreferenced, not silently lost.
     return { error: "Could not schedule the post. Please try again." };
   }
 
@@ -101,16 +144,11 @@ export async function updatePostAction(postId: string, _: PostFormState, formDat
   const nextImagePublicId = uploaded ? uploaded.publicId : removingImage ? null : existing.imagePublicId;
 
   const updated = await updatePendingPost(userId, postId, {
-    content: parsed.data.content,
-    scheduledAt: scheduledAtUtc,
-    timezone: parsed.data.timezone,
+    ...toPostInput(parsed.data, scheduledAtUtc),
     imageUrl: nextImageUrl,
     imagePublicId: nextImagePublicId,
   });
   if (!updated) {
-    // The ownership/status re-check inside updatePendingPost failed (the
-    // post was deleted, published, or otherwise changed concurrently).
-    // Don't leave a freshly-uploaded, now-unreferenced asset behind.
     if (uploaded) await deletePostImage(uploaded.publicId);
     return { error: "This post can no longer be edited." };
   }
