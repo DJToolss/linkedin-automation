@@ -31,7 +31,7 @@ describe.skipIf(!hasTestDatabase())("posts data access (integration)", () => {
 
   it("creates a post scoped to its owner", async () => {
     const created = await createPost(userId, {
-      content: "hello world",
+      heading: null, subHeading: null, content: "hello world",
       scheduledAt: new Date(Date.now() + 60_000),
       timezone: "UTC",
       imageUrl: null,
@@ -46,24 +46,24 @@ describe.skipIf(!hasTestDatabase())("posts data access (integration)", () => {
   });
 
   it("never lists another user's posts", async () => {
-    await createPost(otherUserId, { content: "not yours", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
+    await createPost(otherUserId, { heading: null, subHeading: null, content: "not yours", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
     expect(await listPostsForUser(userId)).toHaveLength(0);
   });
 
   it("refuses to fetch another user's post as editable, even by its real id", async () => {
-    const created = await createPost(otherUserId, { content: "not yours", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
+    const created = await createPost(otherUserId, { heading: null, subHeading: null, content: "not yours", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
     expect(await getEditablePostForUser(userId, created!.id)).toBeNull();
   });
 
   it.each(EDITABLE_STATUSES)("treats a %s post as editable and updatable", async (status) => {
-    const created = await createPost(userId, { content: "draft me", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
+    const created = await createPost(userId, { heading: null, subHeading: null, content: "draft me", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
     await setPostStatus(created!.id, status);
 
     const editable = await getEditablePostForUser(userId, created!.id);
     expect(editable).not.toBeNull();
 
     const updated = await updatePendingPost(userId, created!.id, {
-      content: "updated",
+      heading: null, subHeading: null, content: "updated",
       scheduledAt: new Date(Date.now() + 120_000),
       timezone: "UTC",
       imageUrl: null,
@@ -73,12 +73,12 @@ describe.skipIf(!hasTestDatabase())("posts data access (integration)", () => {
   });
 
   it.each(["publishing", "posted"] as const)("refuses to update or fetch-as-editable a %s post", async (status) => {
-    const created = await createPost(userId, { content: "locked", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
+    const created = await createPost(userId, { heading: null, subHeading: null, content: "locked", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
     await setPostStatus(created!.id, status);
 
     expect(await getEditablePostForUser(userId, created!.id)).toBeNull();
     const updated = await updatePendingPost(userId, created!.id, {
-      content: "should not apply",
+      heading: null, subHeading: null, content: "should not apply",
       scheduledAt: new Date(Date.now() + 120_000),
       timezone: "UTC",
       imageUrl: null,
@@ -88,14 +88,14 @@ describe.skipIf(!hasTestDatabase())("posts data access (integration)", () => {
   });
 
   it("deletes a pending post owned by the caller and returns its image public id", async () => {
-    const created = await createPost(userId, { content: "delete me", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: "https://example.com/x.png", imagePublicId: "users/x/posts/1" });
+    const created = await createPost(userId, { heading: null, subHeading: null, content: "delete me", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: "https://example.com/x.png", imagePublicId: "users/x/posts/1" });
     const deleted = await deletePendingPost(userId, created!.id);
     expect(deleted?.imagePublicId).toBe("users/x/posts/1");
     expect(await listPostsForUser(userId)).toHaveLength(0);
   });
 
   it("refuses to delete another user's post", async () => {
-    const created = await createPost(otherUserId, { content: "not yours", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
+    const created = await createPost(otherUserId, { heading: null, subHeading: null, content: "not yours", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
     expect(await deletePendingPost(userId, created!.id)).toBeNull();
     expect(await listPostsForUser(otherUserId)).toHaveLength(1);
   });

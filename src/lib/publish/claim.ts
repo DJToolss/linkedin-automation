@@ -11,6 +11,8 @@ export const CLAIM_LEASE_SECONDS = 5 * 60;
 export type ClaimedPost = {
   id: string;
   userId: string;
+  heading: string | null;
+  subHeading: string | null;
   content: string;
   imageUrl: string | null;
   imagePublicId: string | null;
@@ -38,7 +40,7 @@ export async function claimDuePosts(limit: number = CLAIM_BATCH_SIZE): Promise<C
       for update skip locked
       limit ${limit}
     )
-    returning id, user_id as "userId", content, image_url as "imageUrl", image_public_id as "imagePublicId", claim_token as "claimToken"
+    returning id, user_id as "userId", heading, sub_heading as "subHeading", content, image_url as "imageUrl", image_public_id as "imagePublicId", claim_token as "claimToken"
   `);
   return result.rows;
 }
@@ -60,7 +62,7 @@ export async function claimScheduledPost(postId: string): Promise<ClaimedPost | 
     where id = ${postId}
       and status = 'scheduled'
       and scheduled_at <= now() + (${TIMER_CLAIM_GRACE_SECONDS} * interval '1 second')
-    returning id, user_id as "userId", content, image_url as "imageUrl", image_public_id as "imagePublicId", claim_token as "claimToken"
+    returning id, user_id as "userId", heading, sub_heading as "subHeading", content, image_url as "imageUrl", image_public_id as "imagePublicId", claim_token as "claimToken"
   `);
   return result.rows[0] ?? null;
 }

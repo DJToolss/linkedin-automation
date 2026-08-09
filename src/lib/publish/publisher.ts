@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { mapWithConcurrency } from "@/lib/concurrency";
 import { getUsableConnection, markConnectionRequiresReconnect } from "@/lib/linkedin/connection";
 import { fetchPostImageBytes, initializeImageUpload, uploadImageBytes } from "@/lib/linkedin/images";
+import { composeLinkedInCommentary } from "@/lib/linkedin/commentary-format";
 import { createLinkedInPost } from "@/lib/linkedin/posts-api";
 import { LinkedInPublishError, type FailureCategory } from "@/lib/linkedin/publish-error";
 import { eq } from "drizzle-orm";
@@ -88,7 +89,11 @@ async function processClaimedPost(post: ClaimedPost, requestLog: Logger): Promis
 
     const linkedinPostUrn = await createLinkedInPost(connection.accessToken, {
       authorUrn: connection.personUrn,
-      commentary: post.content,
+      commentary: composeLinkedInCommentary({
+        heading: post.heading,
+        subHeading: post.subHeading,
+        description: post.content,
+      }),
       imageUrn,
     });
 

@@ -2,9 +2,11 @@ import Link from "next/link";
 
 import { AppHeader } from "@/app/_components/app-header";
 import { PostTabs, type PostsTab } from "@/app/posts/_components/post-tabs";
+import { PostsPagination } from "@/app/posts/_components/posts-pagination";
 import { deletePostAction } from "@/app/posts/actions";
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
-import { EDITABLE_STATUSES, listPostsForUser, type Post } from "@/lib/posts/posts";
+import { postListPreview } from "@/lib/linkedin/commentary-format";
+import { EDITABLE_STATUSES, countPostsForUserByTab, listPostsForUserPaginated, type Post } from "@/lib/posts/posts";
 import { formatZonedDateTime } from "@/lib/time/timezone";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -21,12 +23,14 @@ function isEditable(status: string): boolean {
   return (EDITABLE_STATUSES as readonly string[]).includes(status);
 }
 
-function isScheduledTabPost(post: Post): boolean {
-  return post.status !== "posted" && post.status !== "cancelled";
-}
-
 function resolveTab(tab: string | undefined): PostsTab {
   return tab === "posted" ? "posted" : "scheduled";
+}
+
+function parsePage(value: string | undefined): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.floor(parsed);
 }
 
 function PostCard({ post, tab }: { post: Post; tab: PostsTab }) {
@@ -38,7 +42,9 @@ function PostCard({ post, tab }: { post: Post; tab: PostsTab }) {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           {tab === "scheduled" && <p className="text-sm font-medium">{STATUS_LABEL[post.status] ?? post.status}</p>}
-          <p className={`line-clamp-2 text-sm text-zinc-700 ${tab === "scheduled" ? "mt-1" : ""}`}>{post.content}</p>
+          <p className={`line-clamp-2 text-sm text-zinc-700 ${tab === "scheduled" ? "mt-1" : ""}`}>
+            {postListPreview({ heading: post.heading, subHeading: post.subHeading, description: post.content })}
+          </p>
           {post.imageUrl && (
             <p className="mt-1 text-xs text-zinc-500">{tab === "posted" ? "Includes image" : "Image attached"}</p>
           )}
@@ -77,15 +83,21 @@ function PostCard({ post, tab }: { post: Post; tab: PostsTab }) {
   );
 }
 
-export default async function PostsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+export default async function PostsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; page?: string }>;
+}) {
   const userId = await requireAuthenticatedUserId();
-  const { tab: tabParam } = await searchParams;
+  const { tab: tabParam, page: pageParam } = await searchParams;
   const activeTab = resolveTab(tabParam);
+  const requestedPage = parsePage(pageParam);
 
-  const posts = await listPostsForUser(userId);
-  const scheduledPosts = posts.filter(isScheduledTabPost);
-  const postedPosts = posts.filter((post) => post.status === "posted");
-  const visiblePosts = activeTab === "posted" ? postedPosts : scheduledPosts;
+  const [scheduledCount, postedCount, paginated] = await Promise.all([
+    countPostsForUserByTab(userId, "scheduled"),
+    countPostsForUserByTab(userId, "posted"),
+    listPostsForUserPaginated(userId, activeTab, requestedPage),
+  ]);
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-12">
@@ -97,18 +109,27 @@ export default async function PostsPage({ searchParams }: { searchParams: Promis
         </Link>
       </div>
 
-      <PostTabs activeTab={activeTab} postedCount={postedPosts.length} scheduledCount={scheduledPosts.length} />
+      <PostTabs activeTab={activeTab} postedCount={postedCount} scheduledCount={scheduledCount} />
 
-      {visiblePosts.length === 0 ? (
+      {paginated.items.length === 0 ? (
         <p className="mt-8 text-sm text-zinc-600">
           {activeTab === "posted" ? "No posted posts yet." : "No scheduled posts yet. Create your first one."}
         </p>
       ) : (
-        <ul className="mt-4 space-y-4">
-          {visiblePosts.map((post) => (
-            <PostCard key={post.id} post={post} tab={activeTab} />
-          ))}
-        </ul>
+        <>
+          <ul className="mt-4 space-y-4">
+            {paginated.items.map((post) => (
+              <PostCard key={post.id} post={post} tab={activeTab} />
+            ))}
+          </ul>
+          <PostsPagination
+            page={paginated.page}
+            pageSize={paginated.pageSize}
+            tab={activeTab}
+            total={paginated.total}
+            totalPages={paginated.totalPages}
+          />
+        </>
       )}
     </main>
   );
