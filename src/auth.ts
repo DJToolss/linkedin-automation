@@ -4,22 +4,22 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { authConfig } from "@/auth.config";
 import { getDb } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { getAuthEnv } from "@/lib/env";
+import { readAuthSecret, readSessionMaxAge } from "@/lib/env";
 
 const credentialsSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(1).max(256),
 });
 
-const env = getAuthEnv();
+const authSecret = readAuthSecret();
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret: env.NEXTAUTH_SECRET,
-  trustHost: true,
-  session: { strategy: "jwt", maxAge: env.NEXTAUTH_EXPIRY ?? 60 * 60 * 24 * 30 },
-  pages: { signIn: "/login" },
+  ...authConfig,
+  ...(authSecret ? { secret: authSecret } : {}),
+  session: { ...authConfig.session, maxAge: readSessionMaxAge() },
   providers: [
     Credentials({
       credentials: {
@@ -35,8 +35,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    jwt({ token, user }) { if (user?.id) token.id = user.id; return token; },
-    session({ session, token }) { if (session.user && typeof token.id === "string") session.user.id = token.id; return session; },
-  },
 });

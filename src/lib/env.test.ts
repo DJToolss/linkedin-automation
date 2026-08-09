@@ -89,4 +89,16 @@ describe("env", () => {
     process.env.CRON_SECRET = "short";
     expect(() => getCronEnv()).toThrow();
   });
+
+  it("accepts AUTH_SECRET and AUTH_URL as Auth.js v5 aliases", () => {
+    delete process.env.NEXTAUTH_SECRET;
+    delete process.env.NEXTAUTH_URL;
+    process.env.AUTH_SECRET = "a".repeat(32);
+    process.env.AUTH_URL = "https://app.example.com";
+    expect(getAuthEnv()).toEqual({
+      NEXTAUTH_SECRET: "a".repeat(32),
+      NEXTAUTH_EXPIRY: undefined,
+      NEXTAUTH_URL: "https://app.example.com",
+    });
+  });
 });

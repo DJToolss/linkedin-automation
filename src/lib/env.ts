@@ -25,6 +25,28 @@ const optionalPositiveInteger = z.preprocess(
   z.coerce.number().int().positive().optional(),
 );
 
+/** Auth.js v5 also accepts AUTH_SECRET / AUTH_URL; normalize both naming schemes. */
+export function readAuthSecret(): string | undefined {
+  return process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+}
+
+export function readAuthUrl(): string | undefined {
+  return process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
+}
+
+export function readSessionMaxAge(): number {
+  const expiry = optionalPositiveInteger.safeParse(process.env.NEXTAUTH_EXPIRY);
+  return expiry.success && expiry.data !== undefined ? expiry.data : 60 * 60 * 24 * 30;
+}
+
+function readAuthEnvInput() {
+  return {
+    NEXTAUTH_SECRET: readAuthSecret(),
+    NEXTAUTH_EXPIRY: process.env.NEXTAUTH_EXPIRY,
+    NEXTAUTH_URL: readAuthUrl(),
+  };
+}
+
 const runtimeEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).optional(),
   DATABASE_URL: z.string().url(),
@@ -74,11 +96,7 @@ const BUILD_PHASE_AUTH_ENV = { NEXTAUTH_SECRET: "0".repeat(32), NEXTAUTH_EXPIRY:
 
 export function getAuthEnv() {
   if (process.env.NEXT_PHASE === "phase-production-build") return BUILD_PHASE_AUTH_ENV;
-  return authEnvSchema.parse({
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-    NEXTAUTH_EXPIRY: process.env.NEXTAUTH_EXPIRY,
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-  });
+  return authEnvSchema.parse(readAuthEnvInput());
 }
 
 export function getDatabaseEnv() {
@@ -113,9 +131,9 @@ export function getEnv(): RuntimeEnv {
   return runtimeEnvSchema.parse({
     NODE_ENV: process.env.NODE_ENV,
     DATABASE_URL: process.env.DATABASE_URL,
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+    NEXTAUTH_SECRET: readAuthSecret(),
     NEXTAUTH_EXPIRY: process.env.NEXTAUTH_EXPIRY,
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    NEXTAUTH_URL: readAuthUrl(),
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
     CRON_SECRET: process.env.CRON_SECRET,
