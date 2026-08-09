@@ -80,3 +80,12 @@ export function utcToZonedInputValue(instant: Date, timeZone: string): string {
     }, {});
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
+
+/** Human-readable wall-clock label in the post's stored IANA zone. */
+export function formatZonedDateTime(instant: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone,
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(instant);
+}
