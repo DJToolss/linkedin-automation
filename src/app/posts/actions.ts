@@ -9,6 +9,7 @@ import { deletePostImage, uploadPostImage } from "@/lib/cloudinary";
 import { validateImageBuffer } from "@/lib/media/image-signature";
 import { MAX_POST_CONTENT_LENGTH } from "@/lib/posts/constants";
 import { createPost, deletePendingPost, getEditablePostForUser, updatePendingPost } from "@/lib/posts/posts";
+import { cancelScheduledPublish, schedulePostPublish } from "@/lib/publish/scheduler";
 import { isValidIanaTimeZone, zonedTimeToUtc } from "@/lib/time/timezone";
 
 export type PostFormState = { error?: string; fieldErrors?: Record<string, string[]> };
@@ -72,6 +73,8 @@ export async function createPostAction(_: PostFormState, formData: FormData): Pr
     return { error: "Could not schedule the post. Please try again." };
   }
 
+  schedulePostPublish(created.id, scheduledAtUtc);
+
   revalidatePath("/posts");
   redirect("/posts");
 }
@@ -112,6 +115,8 @@ export async function updatePostAction(postId: string, _: PostFormState, formDat
     return { error: "This post can no longer be edited." };
   }
 
+  schedulePostPublish(postId, scheduledAtUtc);
+
   if (existing.imagePublicId && existing.imagePublicId !== nextImagePublicId) {
     await deletePostImage(existing.imagePublicId);
   }
@@ -122,6 +127,7 @@ export async function updatePostAction(postId: string, _: PostFormState, formDat
 
 export async function deletePostAction(postId: string): Promise<void> {
   const userId = await requireAuthenticatedUserId();
+  cancelScheduledPublish(postId);
   const deleted = await deletePendingPost(userId, postId);
   if (deleted?.imagePublicId) await deletePostImage(deleted.imagePublicId);
   revalidatePath("/posts");
