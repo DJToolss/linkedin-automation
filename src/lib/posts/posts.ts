@@ -19,6 +19,16 @@ export async function listPostsForUser(userId: string): Promise<Post[]> {
   return getDb().select().from(posts).where(eq(posts.userId, userId)).orderBy(desc(posts.scheduledAt), desc(posts.createdAt));
 }
 
+/** Returns any owned post for read-only views (e.g. a published post detail page). */
+export async function getPostForUser(userId: string, postId: string): Promise<Post | null> {
+  const [post] = await getDb()
+    .select()
+    .from(posts)
+    .where(and(eq(posts.id, postId), eq(posts.userId, userId)))
+    .limit(1);
+  return post ?? null;
+}
+
 /** Returns the post only if it belongs to the user AND is still editable. */
 export async function getEditablePostForUser(userId: string, postId: string): Promise<Post | null> {
   const [post] = await getDb()

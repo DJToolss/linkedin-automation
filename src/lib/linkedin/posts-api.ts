@@ -1,6 +1,7 @@
 import "server-only";
 
 import { LINKEDIN_REST_BASE_URL, linkedinApiHeaders } from "@/lib/linkedin/config";
+import { escapeLittleTextCommentary } from "@/lib/linkedin/little-text";
 import { LinkedInPublishError, classifyStatus } from "@/lib/linkedin/publish-error";
 
 export type CreatePostInput = { authorUrn: string; commentary: string; imageUrn?: string };
@@ -12,7 +13,7 @@ export type CreatePostInput = { authorUrn: string; commentary: string; imageUrn?
 export async function createLinkedInPost(accessToken: string, input: CreatePostInput): Promise<string> {
   const body: Record<string, unknown> = {
     author: input.authorUrn,
-    commentary: input.commentary,
+    commentary: escapeLittleTextCommentary(input.commentary),
     visibility: "PUBLIC",
     distribution: { feedDistribution: "MAIN_FEED", targetEntities: [], thirdPartyDistributionChannels: [] },
     lifecycleState: "PUBLISHED",
