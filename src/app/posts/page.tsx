@@ -60,9 +60,14 @@ function PostCard({ post, tab }: { post: Post; tab: PostsTab }) {
 
         <div className="flex shrink-0 flex-wrap justify-end gap-2">
           {tab === "posted" ? (
-            <Link className="rounded border px-3 py-1.5 text-sm font-medium" href={`/posts/${post.id}`}>
-              Open
-            </Link>
+            <>
+              <Link className="rounded border px-3 py-1.5 text-sm font-medium" href={`/posts/${post.id}`}>
+                Open
+              </Link>
+              <Link className="rounded border border-blue-700 px-3 py-1.5 text-sm font-medium text-blue-700" href={`/posts/${post.id}/reschedule`}>
+                Reschedule
+              </Link>
+            </>
           ) : (
             isEditable(post.status) && (
               <>

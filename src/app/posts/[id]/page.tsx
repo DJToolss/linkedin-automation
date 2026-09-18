@@ -4,15 +4,15 @@ import { notFound } from "next/navigation";
 import { AppHeader } from "@/app/_components/app-header";
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
 import { linkedInPostUrl } from "@/lib/linkedin/post-url";
-import { getPostForUser } from "@/lib/posts/posts";
+import { getPostedPostForUser } from "@/lib/posts/posts";
 import { formatZonedDateTime } from "@/lib/time/timezone";
 
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const userId = await requireAuthenticatedUserId();
   const { id } = await params;
 
-  const post = await getPostForUser(userId, id);
-  if (!post || post.status !== "posted") notFound();
+  const post = await getPostedPostForUser(userId, id);
+  if (!post) notFound();
 
   const timezone = post.timezone ?? "UTC";
   const scheduledLabel = post.scheduledAt ? formatZonedDateTime(post.scheduledAt, timezone) : null;
@@ -70,6 +70,9 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
               View on LinkedIn
             </a>
           )}
+          <Link className="rounded border border-blue-700 px-4 py-2 text-sm font-medium text-blue-700" href={`/posts/${post.id}/reschedule`}>
+            Reschedule
+          </Link>
           <Link className="rounded border px-4 py-2 text-sm font-medium" href="/posts?tab=posted">
             Close
           </Link>

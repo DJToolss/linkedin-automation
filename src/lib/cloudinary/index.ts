@@ -41,6 +41,29 @@ export async function uploadPostImage(userId: string, buffer: Buffer, mime: stri
 }
 
 /**
+ * Copies an existing Cloudinary (or other public) image into a new user-scoped
+ * public ID so a rescheduled post can own its own asset. Returns null on
+ * failure so the caller can fall back without taking over the original public ID.
+ */
+export async function duplicatePostImage(userId: string, sourceUrl: string): Promise<UploadedImage | null> {
+  try {
+    const publicId = `users/${userId}/posts/${randomUUID()}`;
+    const result = await client().uploader.upload(sourceUrl, {
+      public_id: publicId,
+      resource_type: "image",
+      type: "upload",
+      overwrite: false,
+    });
+    return { url: result.secure_url, publicId: result.public_id };
+  } catch (error) {
+    logger.error("Cloudinary duplicate failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+/**
  * Best-effort: a delete failure is logged, not thrown, so a Cloudinary
  * outage never blocks the user's create/update/delete request.
  */

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
-import { deletePostImage, uploadPostImage } from "@/lib/cloudinary";
+import { deletePostImage, duplicatePostImage, uploadPostImage } from "@/lib/cloudinary";
 import { composeLinkedInCommentary, hasPostBody } from "@/lib/linkedin/commentary-format";
 import { getConnectionSummary } from "@/lib/linkedin/connection";
 import { validateImageBuffer } from "@/lib/media/image-signature";
@@ -18,7 +18,9 @@ import {
 import {
   createPost,
   deletePendingPost,
+  duplicatePostedPost,
   getEditablePostForUser,
+  getPostedPostForUser,
   markEditablePostForImmediatePublish,
   updatePendingPost,
 } from "@/lib/posts/posts";
@@ -169,6 +171,66 @@ export async function createPostAction(_: PostFormState, formData: FormData): Pr
   schedulePostPublish(created.id, schedule.scheduledAtUtc);
 
   revalidatePath("/posts");
+  redirect("/posts");
+}
+
+export async function reschedulePostedPostAction(sourcePostId: string, _: PostFormState, formData: FormData): Promise<PostFormState> {
+  const userId = await requireAuthenticatedUserId();
+
+  const source = await getPostedPostForUser(userId, sourcePostId);
+  if (!source) return { error: "This post can no longer be rescheduled." };
+
+  const parsed = parsePostForm(formData);
+  if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
+
+  const postNow = parsed.data.intent === "post_now";
+  if (postNow) {
+    const connectionError = await requireLinkedInForImmediatePublish(userId);
+    if (connectionError) return connectionError;
+  }
+
+  const schedule = resolveScheduledAtUtc(parsed.data);
+  if (!schedule.ok) return { fieldErrors: schedule.fieldErrors };
+
+  const image = await readImageFile(formData);
+  if (image.kind === "error") return { fieldErrors: { image: [image.message] } };
+  const uploaded = image.kind === "ok" ? await uploadPostImage(userId, image.buffer, image.mime) : null;
+  const removingImage = parsed.data.removeImage === "on";
+
+  let imageUrl: string | null = null;
+  let imagePublicId: string | null = null;
+  if (uploaded) {
+    imageUrl = uploaded.url;
+    imagePublicId = uploaded.publicId;
+  } else if (!removingImage && source.imageUrl) {
+    const copied = await duplicatePostImage(userId, source.imageUrl);
+    if (copied) {
+      imageUrl = copied.url;
+      imagePublicId = copied.publicId;
+    } else {
+      imageUrl = source.imageUrl;
+    }
+  }
+
+  const created = await duplicatePostedPost(userId, sourcePostId, {
+    ...toPostInput(parsed.data, schedule.scheduledAtUtc),
+    imageUrl,
+    imagePublicId,
+  });
+  if (!created) {
+    if (imagePublicId) await deletePostImage(imagePublicId);
+    return { error: "This post can no longer be rescheduled." };
+  }
+
+  if (postNow) {
+    await publishImmediatelyAndRedirect(created.id, `/posts/${created.id}`);
+    return {};
+  }
+
+  schedulePostPublish(created.id, schedule.scheduledAtUtc);
+
+  revalidatePath("/posts");
+  revalidatePath(`/posts/${sourcePostId}`);
   redirect("/posts");
 }
 

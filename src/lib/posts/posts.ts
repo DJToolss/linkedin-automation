@@ -78,6 +78,13 @@ export async function getPostForUser(userId: string, postId: string): Promise<Po
   return post ?? null;
 }
 
+/** Returns the post only if it belongs to the user and has already been published. */
+export async function getPostedPostForUser(userId: string, postId: string): Promise<Post | null> {
+  const post = await getPostForUser(userId, postId);
+  if (!post || post.status !== "posted") return null;
+  return post;
+}
+
 /** Returns the post only if it belongs to the user AND is still editable. */
 export async function getEditablePostForUser(userId: string, postId: string): Promise<Post | null> {
   const [post] = await getDb()
@@ -116,6 +123,21 @@ export async function createPost(userId: string, input: PostInput): Promise<{ id
     })
     .returning({ id: posts.id });
   return created ?? null;
+}
+
+/**
+ * Creates a new scheduled post from a published original. The source row is
+ * left in `posted` so history and the LinkedIn URN stay intact; the copy is
+ * a separate row with no claim/attempt/publish metadata.
+ */
+export async function duplicatePostedPost(userId: string, sourcePostId: string, input: PostInput): Promise<{ id: string } | null> {
+  const [source] = await getDb()
+    .select({ id: posts.id })
+    .from(posts)
+    .where(and(eq(posts.id, sourcePostId), eq(posts.userId, userId), eq(posts.status, "posted")))
+    .limit(1);
+  if (!source) return null;
+  return createPost(userId, input);
 }
 
 /**
