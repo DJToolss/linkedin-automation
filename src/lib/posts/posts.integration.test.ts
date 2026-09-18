@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { posts } from "@/lib/db/schema";
-import { createPost, deletePendingPost, EDITABLE_STATUSES, getEditablePostForUser, listPostsForUser, markEditablePostForImmediatePublish, updatePendingPost } from "@/lib/posts/posts";
+import { createPost, deletePendingPost, duplicatePostedPost, EDITABLE_STATUSES, getEditablePostForUser, getPostedPostForUser, listPostsForUser, markEditablePostForImmediatePublish, updatePendingPost } from "@/lib/posts/posts";
 import { createTestUser, ensureMigrated, getTestDb, hasTestDatabase, resetTestDatabase } from "@/test/db";
 
 /** Bypasses the app's own status guard to plant a post directly in a given state for setup. */
@@ -126,5 +126,89 @@ describe.skipIf(!hasTestDatabase())("posts data access (integration)", () => {
     const created = await createPost(userId, { heading: null, subHeading: null, content: "locked", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
     await setPostStatus(created!.id, status);
     expect(await markEditablePostForImmediatePublish(userId, created!.id)).toBeNull();
+  });
+
+  it("duplicates a posted post into a new scheduled copy without mutating the original", async () => {
+    const created = await createPost(userId, {
+      heading: "Heading",
+      subHeading: "Sub",
+      content: "Body",
+      scheduledAt: new Date(Date.now() + 60_000),
+      timezone: "America/New_York",
+      imageUrl: "https://example.com/orig.png",
+      imagePublicId: "users/x/posts/orig",
+    });
+    await getTestDb()
+      .update(posts)
+      .set({ status: "posted", linkedinPostUrn: "urn:li:share:1", attemptCount: 2 })
+      .where(eq(posts.id, created!.id));
+
+    const copy = await duplicatePostedPost(userId, created!.id, {
+      heading: "Heading",
+      subHeading: "Sub",
+      content: "Body",
+      scheduledAt: new Date(Date.now() + 120_000),
+      timezone: "America/New_York",
+      imageUrl: "https://example.com/copy.png",
+      imagePublicId: "users/x/posts/copy",
+    });
+    expect(copy?.id).toBeDefined();
+    expect(copy!.id).not.toBe(created!.id);
+
+    const original = await getPostedPostForUser(userId, created!.id);
+    expect(original?.status).toBe("posted");
+    expect(original?.linkedinPostUrn).toBe("urn:li:share:1");
+    expect(original?.attemptCount).toBe(2);
+    expect(original?.imagePublicId).toBe("users/x/posts/orig");
+
+    const duplicated = await getEditablePostForUser(userId, copy!.id);
+    expect(duplicated?.status).toBe("scheduled");
+    expect(duplicated?.heading).toBe("Heading");
+    expect(duplicated?.content).toBe("Body");
+    expect(duplicated?.imagePublicId).toBe("users/x/posts/copy");
+    expect(duplicated?.linkedinPostUrn).toBeNull();
+    expect(duplicated?.attemptCount).toBe(0);
+    expect(duplicated?.claimToken).toBeNull();
+  });
+
+  it("refuses to duplicate another user's posted post", async () => {
+    const created = await createPost(otherUserId, {
+      heading: null, subHeading: null, content: "not yours",
+      scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null,
+    });
+    await setPostStatus(created!.id, "posted");
+    expect(
+      await duplicatePostedPost(userId, created!.id, {
+        heading: null, subHeading: null, content: "not yours",
+        scheduledAt: new Date(Date.now() + 120_000), timezone: "UTC", imageUrl: null, imagePublicId: null,
+      }),
+    ).toBeNull();
+    expect(await listPostsForUser(userId)).toHaveLength(0);
+  });
+
+  it.each(["draft", "scheduled", "publishing", "failed"] as const)("refuses to duplicate a %s post", async (status) => {
+    const created = await createPost(userId, {
+      heading: null, subHeading: null, content: "not posted",
+      scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null,
+    });
+    await setPostStatus(created!.id, status);
+    expect(
+      await duplicatePostedPost(userId, created!.id, {
+        heading: null, subHeading: null, content: "copy",
+        scheduledAt: new Date(Date.now() + 120_000), timezone: "UTC", imageUrl: null, imagePublicId: null,
+      }),
+    ).toBeNull();
+    expect(await listPostsForUser(userId)).toHaveLength(1);
+  });
+
+  it("returns posted posts from getPostedPostForUser and ignores other statuses", async () => {
+    const created = await createPost(userId, {
+      heading: null, subHeading: null, content: "hello",
+      scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null,
+    });
+    expect(await getPostedPostForUser(userId, created!.id)).toBeNull();
+    await setPostStatus(created!.id, "posted");
+    expect(await getPostedPostForUser(userId, created!.id)).not.toBeNull();
+    expect(await getPostedPostForUser(otherUserId, created!.id)).toBeNull();
   });
 });
