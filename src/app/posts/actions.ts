@@ -7,6 +7,7 @@ import { z } from "zod";
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
 import { deletePostImage, uploadPostImage } from "@/lib/cloudinary";
 import { composeLinkedInCommentary, hasPostBody } from "@/lib/linkedin/commentary-format";
+import { getConnectionSummary } from "@/lib/linkedin/connection";
 import { validateImageBuffer } from "@/lib/media/image-signature";
 import {
   MAX_DESCRIPTION_LENGTH,
@@ -14,7 +15,14 @@ import {
   MAX_POST_CONTENT_LENGTH,
   MAX_SUBHEADING_LENGTH,
 } from "@/lib/posts/constants";
-import { createPost, deletePendingPost, getEditablePostForUser, updatePendingPost } from "@/lib/posts/posts";
+import {
+  createPost,
+  deletePendingPost,
+  getEditablePostForUser,
+  markEditablePostForImmediatePublish,
+  updatePendingPost,
+} from "@/lib/posts/posts";
+import { runPublishBatchForPost } from "@/lib/publish/publisher";
 import { cancelScheduledPublish, schedulePostPublish } from "@/lib/publish/scheduler";
 import { isValidIanaTimeZone, zonedTimeToUtc } from "@/lib/time/timezone";
 
@@ -37,7 +45,8 @@ const postSchema = z
       emptyToNull,
       z.string().max(MAX_DESCRIPTION_LENGTH, `Keep the description under ${MAX_DESCRIPTION_LENGTH} characters.`).nullable(),
     ),
-    scheduledAt: z.string().min(1, "Choose a date and time."),
+    intent: z.preprocess((value) => (value === "post_now" ? "post_now" : "schedule"), z.enum(["schedule", "post_now"])),
+    scheduledAt: z.preprocess(emptyToNull, z.string().nullable()),
     timezone: z.string().min(1, "Choose a time zone.").refine(isValidIanaTimeZone, "Choose a valid time zone."),
     removeImage: z.string().nullable().optional(),
   })
@@ -59,6 +68,10 @@ const postSchema = z
         path: ["content"],
       });
     }
+
+    if (data.intent === "schedule" && !data.scheduledAt) {
+      ctx.addIssue({ code: "custom", message: "Choose a date and time.", path: ["scheduledAt"] });
+    }
   });
 
 type ImageReadResult = { kind: "none" } | { kind: "error"; message: string } | { kind: "ok"; buffer: Buffer; mime: string };
@@ -77,10 +90,36 @@ function parsePostForm(formData: FormData) {
     heading: formData.get("heading"),
     subHeading: formData.get("subHeading"),
     content: formData.get("content"),
+    intent: formData.get("intent"),
     scheduledAt: formData.get("scheduledAt"),
     timezone: formData.get("timezone"),
     removeImage: formData.get("removeImage"),
   });
+}
+
+function resolveScheduledAtUtc(parsed: z.infer<typeof postSchema>): { ok: true; scheduledAtUtc: Date } | { ok: false; fieldErrors: Record<string, string[]> } {
+  if (parsed.intent === "post_now") return { ok: true, scheduledAtUtc: new Date() };
+
+  const scheduledAtUtc = zonedTimeToUtc(parsed.scheduledAt ?? "", parsed.timezone);
+  if (Number.isNaN(scheduledAtUtc.getTime())) return { ok: false, fieldErrors: { scheduledAt: ["Enter a valid date and time."] } };
+  if (scheduledAtUtc <= new Date()) return { ok: false, fieldErrors: { scheduledAt: ["Choose a time in the future."] } };
+  return { ok: true, scheduledAtUtc };
+}
+
+async function requireLinkedInForImmediatePublish(userId: string): Promise<PostFormState | null> {
+  const connection = await getConnectionSummary(userId);
+  if (connection?.status === "connected") return null;
+  return { error: "Connect LinkedIn in Settings before posting now." };
+}
+
+async function publishImmediatelyAndRedirect(postId: string, successPath: string, failurePath: string = "/posts"): Promise<void> {
+  cancelScheduledPublish(postId);
+  const summary = await runPublishBatchForPost(postId);
+  revalidatePath("/posts");
+  revalidatePath(`/posts/${postId}`);
+  if (summary.succeeded) redirect(successPath);
+  if (summary.claimed === 0) schedulePostPublish(postId, new Date());
+  redirect(failurePath);
 }
 
 function toPostInput(parsed: z.infer<typeof postSchema>, scheduledAtUtc: Date) {
@@ -99,24 +138,35 @@ export async function createPostAction(_: PostFormState, formData: FormData): Pr
   const parsed = parsePostForm(formData);
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
 
-  const scheduledAtUtc = zonedTimeToUtc(parsed.data.scheduledAt, parsed.data.timezone);
-  if (Number.isNaN(scheduledAtUtc.getTime())) return { fieldErrors: { scheduledAt: ["Enter a valid date and time."] } };
-  if (scheduledAtUtc <= new Date()) return { fieldErrors: { scheduledAt: ["Choose a time in the future."] } };
+  const postNow = parsed.data.intent === "post_now";
+  if (postNow) {
+    const connectionError = await requireLinkedInForImmediatePublish(userId);
+    if (connectionError) return connectionError;
+  }
+
+  const schedule = resolveScheduledAtUtc(parsed.data);
+  if (!schedule.ok) return { fieldErrors: schedule.fieldErrors };
 
   const image = await readImageFile(formData);
   if (image.kind === "error") return { fieldErrors: { image: [image.message] } };
   const uploaded = image.kind === "ok" ? await uploadPostImage(userId, image.buffer, image.mime) : null;
 
   const created = await createPost(userId, {
-    ...toPostInput(parsed.data, scheduledAtUtc),
+    ...toPostInput(parsed.data, schedule.scheduledAtUtc),
     imageUrl: uploaded?.url ?? null,
     imagePublicId: uploaded?.publicId ?? null,
   });
   if (!created) {
-    return { error: "Could not schedule the post. Please try again." };
+    if (uploaded) await deletePostImage(uploaded.publicId);
+    return { error: postNow ? "Could not publish the post. Please try again." : "Could not schedule the post. Please try again." };
   }
 
-  schedulePostPublish(created.id, scheduledAtUtc);
+  if (postNow) {
+    await publishImmediatelyAndRedirect(created.id, `/posts/${created.id}`);
+    return {};
+  }
+
+  schedulePostPublish(created.id, schedule.scheduledAtUtc);
 
   revalidatePath("/posts");
   redirect("/posts");
@@ -131,9 +181,14 @@ export async function updatePostAction(postId: string, _: PostFormState, formDat
   const parsed = parsePostForm(formData);
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
 
-  const scheduledAtUtc = zonedTimeToUtc(parsed.data.scheduledAt, parsed.data.timezone);
-  if (Number.isNaN(scheduledAtUtc.getTime())) return { fieldErrors: { scheduledAt: ["Enter a valid date and time."] } };
-  if (scheduledAtUtc <= new Date()) return { fieldErrors: { scheduledAt: ["Choose a time in the future."] } };
+  const postNow = parsed.data.intent === "post_now";
+  if (postNow) {
+    const connectionError = await requireLinkedInForImmediatePublish(userId);
+    if (connectionError) return connectionError;
+  }
+
+  const schedule = resolveScheduledAtUtc(parsed.data);
+  if (!schedule.ok) return { fieldErrors: schedule.fieldErrors };
 
   const image = await readImageFile(formData);
   if (image.kind === "error") return { fieldErrors: { image: [image.message] } };
@@ -144,7 +199,7 @@ export async function updatePostAction(postId: string, _: PostFormState, formDat
   const nextImagePublicId = uploaded ? uploaded.publicId : removingImage ? null : existing.imagePublicId;
 
   const updated = await updatePendingPost(userId, postId, {
-    ...toPostInput(parsed.data, scheduledAtUtc),
+    ...toPostInput(parsed.data, schedule.scheduledAtUtc),
     imageUrl: nextImageUrl,
     imagePublicId: nextImagePublicId,
   });
@@ -153,14 +208,30 @@ export async function updatePostAction(postId: string, _: PostFormState, formDat
     return { error: "This post can no longer be edited." };
   }
 
-  schedulePostPublish(postId, scheduledAtUtc);
-
   if (existing.imagePublicId && existing.imagePublicId !== nextImagePublicId) {
     await deletePostImage(existing.imagePublicId);
   }
 
+  if (postNow) {
+    await publishImmediatelyAndRedirect(postId, `/posts/${postId}`);
+    return {};
+  }
+
+  schedulePostPublish(postId, schedule.scheduledAtUtc);
+
   revalidatePath("/posts");
   redirect("/posts");
+}
+
+export async function publishNowAction(postId: string): Promise<void> {
+  const userId = await requireAuthenticatedUserId();
+  const existing = await getEditablePostForUser(userId, postId);
+  if (!existing) return;
+
+  const marked = await markEditablePostForImmediatePublish(userId, postId);
+  if (!marked) return;
+
+  await publishImmediatelyAndRedirect(postId, "/posts?tab=posted");
 }
 
 export async function deletePostAction(postId: string): Promise<void> {

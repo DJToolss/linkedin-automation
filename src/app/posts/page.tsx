@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AppHeader } from "@/app/_components/app-header";
 import { PostTabs, type PostsTab } from "@/app/posts/_components/post-tabs";
 import { PostsPagination } from "@/app/posts/_components/posts-pagination";
-import { deletePostAction } from "@/app/posts/actions";
+import { deletePostAction, publishNowAction } from "@/app/posts/actions";
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
 import { postListPreview } from "@/lib/linkedin/commentary-format";
 import { EDITABLE_STATUSES, countPostsForUserByTab, listPostsForUserPaginated, type Post } from "@/lib/posts/posts";
@@ -58,7 +58,7 @@ function PostCard({ post, tab }: { post: Post; tab: PostsTab }) {
           {post.errorMessage && <p className="mt-1 text-xs text-red-700">{post.errorMessage}</p>}
         </div>
 
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
           {tab === "posted" ? (
             <Link className="rounded border px-3 py-1.5 text-sm font-medium" href={`/posts/${post.id}`}>
               Open
@@ -69,6 +69,11 @@ function PostCard({ post, tab }: { post: Post; tab: PostsTab }) {
                 <Link className="rounded border px-3 py-1.5 text-sm font-medium" href={`/posts/${post.id}/edit`}>
                   Edit
                 </Link>
+                <form action={publishNowAction.bind(null, post.id)}>
+                  <button className="rounded border border-blue-700 px-3 py-1.5 text-sm font-medium text-blue-700" type="submit">
+                    Post now
+                  </button>
+                </form>
                 <form action={deletePostAction.bind(null, post.id)}>
                   <button className="rounded border px-3 py-1.5 text-sm font-medium text-red-700" type="submit">
                     Delete
