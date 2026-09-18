@@ -1,0 +1,46 @@
+# dependencies & local build output
+node_modules
+.next
+out
+build
+coverage
+
+# git, editor, and local tooling
+.git
+.gitignore
+.cursor
+.vscode
+.idea
+
+# secrets — runtime env is injected by Compose, never baked into the image
+.env
+.env.*
+!.env.example
+
+# docs and plans not needed at build
+*.md
+*.MD
+AGENTS.md
+CLAUDE.md
+
+# tests
+**/*.test.ts
+**/*.integration.test.ts
+src/test
+vitest.config.*
+
+# docker files themselves are not needed in the build context
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# misc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.DS_Store
+*.pem
+.vercel
+next-env.d.ts
+*.tsbuildinfo

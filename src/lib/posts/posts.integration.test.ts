@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { posts } from "@/lib/db/schema";
-import { createPost, deletePendingPost, EDITABLE_STATUSES, getEditablePostForUser, listPostsForUser, updatePendingPost } from "@/lib/posts/posts";
+import { createPost, deletePendingPost, EDITABLE_STATUSES, getEditablePostForUser, listPostsForUser, markEditablePostForImmediatePublish, updatePendingPost } from "@/lib/posts/posts";
 import { createTestUser, ensureMigrated, getTestDb, hasTestDatabase, resetTestDatabase } from "@/test/db";
 
 /** Bypasses the app's own status guard to plant a post directly in a given state for setup. */
@@ -98,5 +98,33 @@ describe.skipIf(!hasTestDatabase())("posts data access (integration)", () => {
     const created = await createPost(otherUserId, { heading: null, subHeading: null, content: "not yours", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
     expect(await deletePendingPost(userId, created!.id)).toBeNull();
     expect(await listPostsForUser(otherUserId)).toHaveLength(1);
+  });
+
+  it("marks an owned pending post as due now so it can publish immediately", async () => {
+    const future = new Date(Date.now() + 60 * 60_000);
+    const created = await createPost(userId, {
+      heading: null, subHeading: null, content: "post me now",
+      scheduledAt: future, timezone: "UTC", imageUrl: null, imagePublicId: null,
+    });
+    await setPostStatus(created!.id, "failed");
+
+    const marked = await markEditablePostForImmediatePublish(userId, created!.id);
+    expect(marked?.id).toBe(created!.id);
+
+    const post = await getEditablePostForUser(userId, created!.id);
+    expect(post?.status).toBe("scheduled");
+    expect(post?.scheduledAt).not.toBeNull();
+    expect(post!.scheduledAt!.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it("refuses to mark another user's post for immediate publish", async () => {
+    const created = await createPost(otherUserId, { heading: null, subHeading: null, content: "not yours", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
+    expect(await markEditablePostForImmediatePublish(userId, created!.id)).toBeNull();
+  });
+
+  it.each(["publishing", "posted"] as const)("refuses to mark a %s post for immediate publish", async (status) => {
+    const created = await createPost(userId, { heading: null, subHeading: null, content: "locked", scheduledAt: new Date(Date.now() + 60_000), timezone: "UTC", imageUrl: null, imagePublicId: null });
+    await setPostStatus(created!.id, status);
+    expect(await markEditablePostForImmediatePublish(userId, created!.id)).toBeNull();
   });
 });

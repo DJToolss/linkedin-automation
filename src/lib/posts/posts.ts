@@ -142,6 +142,26 @@ export async function updatePendingPost(userId: string, postId: string, input: P
   return updated ?? null;
 }
 
+/**
+ * Moves an editable post to `scheduled` with `scheduledAt = now` so the
+ * existing claim path can publish it immediately (composer "Post now" and
+ * the list-item action). Ownership and status are enforced in one UPDATE.
+ */
+export async function markEditablePostForImmediatePublish(userId: string, postId: string): Promise<{ id: string } | null> {
+  const [updated] = await getDb()
+    .update(posts)
+    .set({
+      scheduledAt: new Date(),
+      status: "scheduled",
+      errorCode: null,
+      errorMessage: null,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(posts.id, postId), eq(posts.userId, userId), inArray(posts.status, [...EDITABLE_STATUSES])))
+    .returning({ id: posts.id });
+  return updated ?? null;
+}
+
 /** Deleting and reading back the freed `imagePublicId` happen in one statement. */
 export async function deletePendingPost(userId: string, postId: string): Promise<{ imagePublicId: string | null } | null> {
   const [deleted] = await getDb()

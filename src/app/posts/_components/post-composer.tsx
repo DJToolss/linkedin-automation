@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useFormStatus } from "react-dom";
 
 import type { PostFormState } from "@/app/posts/actions";
 import { ImageUploader } from "@/app/posts/_components/image-uploader";
@@ -15,6 +16,29 @@ const initialState: PostFormState = {};
 
 function FieldError({ errors }: { errors?: string[] }) {
   return errors?.length ? <p className="mt-1 text-sm text-red-700">{errors[0]}</p> : null;
+}
+
+function ComposerActions({ submitLabel }: { submitLabel: string }) {
+  const { pending, data } = useFormStatus();
+  const intent = data?.get("intent");
+
+  return (
+    <div className="flex flex-wrap gap-3">
+      <button className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-60" disabled={pending} name="intent" type="submit" value="schedule">
+        {pending && intent === "schedule" ? "Saving…" : submitLabel}
+      </button>
+      <button
+        className="rounded border border-blue-700 px-4 py-2 text-sm font-medium text-blue-700 disabled:opacity-60"
+        disabled={pending}
+        formNoValidate
+        name="intent"
+        type="submit"
+        value="post_now"
+      >
+        {pending && intent === "post_now" ? "Posting…" : "Post now"}
+      </button>
+    </div>
+  );
 }
 
 type ExistingPost = {
@@ -51,7 +75,7 @@ export function PostComposer({
   existing?: ExistingPost;
   submitLabel: string;
 }) {
-  const [state, formAction, pending] = useActionState(action, initialState);
+  const [state, formAction] = useActionState(action, initialState);
   const [heading, setHeading] = useState(existing?.heading ?? "");
   const [subHeading, setSubHeading] = useState(existing?.subHeading ?? "");
   const [content, setContent] = useState(existing?.content ?? "");
@@ -128,6 +152,7 @@ export function PostComposer({
             required
             type="datetime-local"
           />
+          <p className="mt-1 text-xs text-zinc-600">Needed to schedule. Skip this if you Post now.</p>
           <FieldError errors={state.fieldErrors?.scheduledAt} />
         </div>
         <div>
@@ -142,9 +167,7 @@ export function PostComposer({
       </div>
 
       {state.error && <p className="text-sm text-red-700" role="alert">{state.error}</p>}
-      <button className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-60" disabled={pending} type="submit">
-        {pending ? "Saving…" : submitLabel}
-      </button>
+      <ComposerActions submitLabel={submitLabel} />
     </form>
   );
 }
