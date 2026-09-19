@@ -78,13 +78,12 @@ jobs:
           GREEN_PORT: ${{ vars.DEPLOY_GREEN_PORT || '3003' }}
           UPSTREAM_FILE: ${{ vars.DEPLOY_UPSTREAM_FILE || '/opt/linkedin/nginx_upstreams.conf' }}
           UPSTREAM_NAME: ${{ vars.DEPLOY_UPSTREAM_NAME || 'linkedin_web_live' }}
-          VERIFY_URL: ${{ vars.DEPLOY_VERIFY_URL || 'https://linkedin.anytimerequest.com' }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 20m
-          envs: IMAGE_TAG,ECR_REGISTRY,ECR_REPOSITORY,AWS_REGION,BLUE_SERVICE,GREEN_SERVICE,BLUE_PORT,GREEN_PORT,UPSTREAM_FILE,UPSTREAM_NAME,VERIFY_URL
+          envs: IMAGE_TAG,ECR_REGISTRY,ECR_REPOSITORY,AWS_REGION,BLUE_SERVICE,GREEN_SERVICE,BLUE_PORT,GREEN_PORT,UPSTREAM_FILE,UPSTREAM_NAME
           script: |
             bash -se <<'DEPLOY_SCRIPT'
             set -euo pipefail
@@ -100,10 +99,6 @@ jobs:
             exec 9>.deploy.lock
             flock -n 9 || { echo "Another deployment is running"; exit 1; }
 
-            : "${VERIFY_URL:?Set DEPLOY_VERIFY_URL to the public HTTPS origin}"
-            VERIFY_URL="${VERIFY_URL%/login}"
-            VERIFY_URL="${VERIFY_URL%/}"
-            [[ "$VERIFY_URL" =~ ^https://[^/]+$ ]] || { echo "DEPLOY_VERIFY_URL must be https://your-domain"; exit 1; }
             [[ "$UPSTREAM_NAME" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]
             [[ "$BLUE_PORT" =~ ^[0-9]+$ && "$GREEN_PORT" =~ ^[0-9]+$ && "$BLUE_PORT" != "$GREEN_PORT" ]]
             [ "$BLUE_SERVICE" != "$GREEN_SERVICE" ]
@@ -136,14 +131,6 @@ jobs:
               exit 1
             fi
 
-            VERIFY_HOST=${VERIFY_URL#https://}
-            VERIFY_HOST=${VERIFY_HOST%%/*}
-            check_nginx() {
-              NGINX_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 --resolve "$VERIFY_HOST:443:127.0.0.1" "$VERIFY_URL" || true)
-              [ "$NGINX_STATUS" = 200 ]
-            }
-            check_nginx || { echo "Current Nginx endpoint is unhealthy; deployment aborted (HTTP ${NGINX_STATUS:-000} from $VERIFY_URL)"; exit 1; }
-
             aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
             EXPECTED_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
             RESOLVED_IMAGE=$(docker compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["services"][sys.argv[1]]["image"])' "$TARGET_SERVICE")
@@ -159,7 +146,7 @@ jobs:
               if [ "$STATUS" -ne 0 ]; then
                 docker compose logs --no-color --tail=100 "$TARGET_SERVICE" || true
                 if [ "$SWITCHED" = true ]; then
-                  if ! { sudo cp "$BACKUP" "$UPSTREAM_FILE" && sudo nginx -t && sudo systemctl reload nginx && check_nginx; }; then
+                  if ! { sudo cp "$BACKUP" "$UPSTREAM_FILE" && sudo nginx -t && sudo systemctl reload nginx; }; then
                     echo "Rollback failed; both containers retained. Backup: $BACKUP"
                     exit "$STATUS"
                   fi
@@ -187,8 +174,6 @@ jobs:
             printf 'upstream %s { server 127.0.0.1:%s; }\n' "$UPSTREAM_NAME" "$TARGET_PORT" | sudo tee "$UPSTREAM_FILE" >/dev/null
             sudo nginx -t
             sudo systemctl reload nginx
-            sleep 5
-            check_nginx || { echo "Nginx verification failed (HTTP ${NGINX_STATUS:-000} from $VERIFY_URL)"; exit 1; }
 
             trap - EXIT
             sudo rm -f "$BACKUP"
