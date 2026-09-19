@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { AppHeader } from "@/app/_components/app-header";
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
 import { linkedInPostUrl } from "@/lib/linkedin/post-url";
+import { DEFAULT_TIMEZONE } from "@/lib/posts/constants";
 import { getPostedPostForUser } from "@/lib/posts/posts";
 import { formatZonedDateTime } from "@/lib/time/timezone";
 
@@ -14,7 +15,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
   const post = await getPostedPostForUser(userId, id);
   if (!post) notFound();
 
-  const timezone = post.timezone ?? "UTC";
+  const timezone = post.timezone ?? DEFAULT_TIMEZONE;
   const scheduledLabel = post.scheduledAt ? formatZonedDateTime(post.scheduledAt, timezone) : null;
   const postedLabel = formatZonedDateTime(post.updatedAt, timezone);
 

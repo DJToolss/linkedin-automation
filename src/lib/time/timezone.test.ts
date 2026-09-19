@@ -6,6 +6,7 @@ describe("isValidIanaTimeZone", () => {
   it("accepts a real IANA zone", () => {
     expect(isValidIanaTimeZone("America/New_York")).toBe(true);
     expect(isValidIanaTimeZone("UTC")).toBe(true);
+    expect(isValidIanaTimeZone("Asia/Calcutta")).toBe(true);
   });
 
   it("rejects a made-up zone name", () => {
@@ -14,10 +15,11 @@ describe("isValidIanaTimeZone", () => {
 });
 
 describe("listSupportedTimeZones", () => {
-  it("returns a non-empty list that includes UTC", () => {
+  it("returns a non-empty list that includes UTC and Asia/Calcutta", () => {
     const zones = listSupportedTimeZones();
     expect(zones.length).toBeGreaterThan(0);
     expect(zones).toContain("UTC");
+    expect(zones).toContain("Asia/Calcutta");
   });
 });
 
