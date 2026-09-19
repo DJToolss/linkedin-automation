@@ -8,3 +8,5 @@ export const MAX_HEADING_LENGTH = 220;
 export const MAX_SUBHEADING_LENGTH = 300;
 export const MAX_DESCRIPTION_LENGTH = 3000;
 export const POSTS_PAGE_SIZE = 10;
+/** Default IANA zone for new posts. `Asia/Calcutta` is the alias this product uses; it is equivalent to `Asia/Kolkata`. */
+export const DEFAULT_TIMEZONE = "Asia/Calcutta";

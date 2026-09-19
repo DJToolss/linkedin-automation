@@ -2,26 +2,26 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { DEFAULT_TIMEZONE } from "@/lib/posts/constants";
+
 type TimezonePickerProps = {
   timeZones: string[];
-  defaultValue?: string;
+  value: string;
+  onChange: (zone: string) => void;
   name?: string;
   error?: string[];
 };
 
-function resolveInitialZone(defaultValue: string, timeZones: string[]): string {
-  if (defaultValue !== "UTC") return defaultValue;
-  const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  if (detected && timeZones.includes(detected)) return detected;
+export function resolveInitialZone(defaultValue: string, timeZones: string[]): string {
+  if (timeZones.includes(defaultValue)) return defaultValue;
+  if (timeZones.includes(DEFAULT_TIMEZONE)) return DEFAULT_TIMEZONE;
   return defaultValue;
 }
 
-export function TimezonePicker({ timeZones, defaultValue = "UTC", name = "timezone", error }: TimezonePickerProps) {
+export function TimezonePicker({ timeZones, value, onChange, name = "timezone", error }: TimezonePickerProps) {
   const listId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
-  const initialZone = useMemo(() => resolveInitialZone(defaultValue, timeZones), [defaultValue, timeZones]);
-  const [selected, setSelected] = useState(initialZone);
-  const [query, setQuery] = useState(initialZone);
+  const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
 
   const filteredZones = useMemo(() => {
@@ -39,7 +39,7 @@ export function TimezonePicker({ timeZones, defaultValue = "UTC", name = "timezo
   }, []);
 
   function chooseZone(zone: string) {
-    setSelected(zone);
+    onChange(zone);
     setQuery(zone);
     setOpen(false);
   }
@@ -50,13 +50,13 @@ export function TimezonePicker({ timeZones, defaultValue = "UTC", name = "timezo
       chooseZone(exact);
       return;
     }
-    setQuery(selected);
+    setQuery(value);
     setOpen(false);
   }
 
   return (
     <div className="relative" ref={containerRef}>
-      <input name={name} type="hidden" value={selected} />
+      <input name={name} type="hidden" value={value} />
       <label className="sr-only" htmlFor={`${listId}-input`}>
         Time zone
       </label>
@@ -72,11 +72,14 @@ export function TimezonePicker({ timeZones, defaultValue = "UTC", name = "timezo
           setQuery(event.target.value);
           setOpen(true);
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          setQuery(value);
+          setOpen(true);
+        }}
         placeholder="Search time zones (e.g. Asia/Calcutta)"
         role="combobox"
         type="text"
-        value={query}
+        value={open ? query : value}
       />
       {open && filteredZones.length > 0 && (
         <ul
@@ -87,8 +90,8 @@ export function TimezonePicker({ timeZones, defaultValue = "UTC", name = "timezo
           {filteredZones.map((zone) => (
             <li key={zone} role="presentation">
               <button
-                aria-selected={zone === selected}
-                className={`w-full px-3 py-2 text-left text-sm hover:bg-blue-50 ${zone === selected ? "bg-blue-50 font-medium text-blue-700" : "text-zinc-800"}`}
+                aria-selected={zone === value}
+                className={`w-full px-3 py-2 text-left text-sm hover:bg-blue-50 ${zone === value ? "bg-blue-50 font-medium text-blue-700" : "text-zinc-800"}`}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => chooseZone(zone)}
                 role="option"

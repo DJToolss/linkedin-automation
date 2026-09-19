@@ -38,6 +38,15 @@ export async function listPostsForUser(userId: string): Promise<Post[]> {
   return getDb().select().from(posts).where(eq(posts.userId, userId)).orderBy(desc(posts.scheduledAt), desc(posts.createdAt));
 }
 
+/** UTC instants for pending posts, used to highlight occupied days in the composer calendar. */
+export async function listPendingScheduledAtIsosForUser(userId: string): Promise<string[]> {
+  const rows = await getDb()
+    .select({ scheduledAt: posts.scheduledAt })
+    .from(posts)
+    .where(and(eq(posts.userId, userId), ne(posts.status, "posted"), ne(posts.status, "cancelled")));
+  return rows.flatMap((row) => (row.scheduledAt ? [row.scheduledAt.toISOString()] : []));
+}
+
 export async function countPostsForUserByTab(userId: string, tab: PostsListTab): Promise<number> {
   const [row] = await getDb().select({ total: count() }).from(posts).where(tabFilter(userId, tab));
   return Number(row?.total ?? 0);

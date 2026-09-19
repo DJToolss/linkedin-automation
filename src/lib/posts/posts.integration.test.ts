@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { posts } from "@/lib/db/schema";
-import { createPost, deletePendingPost, duplicatePostedPost, EDITABLE_STATUSES, getEditablePostForUser, getPostedPostForUser, listPostsForUser, markEditablePostForImmediatePublish, updatePendingPost } from "@/lib/posts/posts";
+import { createPost, deletePendingPost, duplicatePostedPost, EDITABLE_STATUSES, getEditablePostForUser, getPostedPostForUser, listPendingScheduledAtIsosForUser, listPostsForUser, markEditablePostForImmediatePublish, updatePendingPost } from "@/lib/posts/posts";
 import { createTestUser, ensureMigrated, getTestDb, hasTestDatabase, resetTestDatabase } from "@/test/db";
 
 /** Bypasses the app's own status guard to plant a post directly in a given state for setup. */
@@ -210,5 +210,25 @@ describe.skipIf(!hasTestDatabase())("posts data access (integration)", () => {
     await setPostStatus(created!.id, "posted");
     expect(await getPostedPostForUser(userId, created!.id)).not.toBeNull();
     expect(await getPostedPostForUser(otherUserId, created!.id)).toBeNull();
+  });
+
+  it("lists pending scheduled instants for the owner and skips posted or foreign posts", async () => {
+    const pending = await createPost(userId, {
+      heading: null, subHeading: null, content: "pending",
+      scheduledAt: new Date("2026-10-01T12:00:00.000Z"), timezone: "UTC", imageUrl: null, imagePublicId: null,
+    });
+    const posted = await createPost(userId, {
+      heading: null, subHeading: null, content: "already posted",
+      scheduledAt: new Date("2026-10-02T12:00:00.000Z"), timezone: "UTC", imageUrl: null, imagePublicId: null,
+    });
+    await setPostStatus(posted!.id, "posted");
+    await createPost(otherUserId, {
+      heading: null, subHeading: null, content: "someone else",
+      scheduledAt: new Date("2026-10-03T12:00:00.000Z"), timezone: "UTC", imageUrl: null, imagePublicId: null,
+    });
+
+    const instants = await listPendingScheduledAtIsosForUser(userId);
+    expect(instants).toEqual(["2026-10-01T12:00:00.000Z"]);
+    expect(pending?.id).toBeDefined();
   });
 });

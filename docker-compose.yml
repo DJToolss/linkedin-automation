@@ -1,44 +1,47 @@
+# Container logs: json-file driver with rotation (~50 MB cap per service: 5 × 10 MB).
 x-logging: &default-logging
   driver: json-file
   options:
     max-size: "10m"
     max-file: "5"
+    compress: "true"
+
+x-web: &web
+  image: ${ECR_REGISTRY:-825125930465.dkr.ecr.ap-south-2.amazonaws.com}/${ECR_REPOSITORY:-linkedin-automation}:${IMAGE_TAG:-latest}
+  env_file:
+    - .env
+  environment:
+    NODE_ENV: production
+    HOSTNAME: 0.0.0.0
+    PORT: "3000"
+    NEXTAUTH_URL: ${NEXTAUTH_URL:-https://linkedin.anytimerequest.com}
+    NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://linkedin.anytimerequest.com}
+  logging: *default-logging
+  restart: unless-stopped
+  init: true
+  stop_grace_period: 30s
+  healthcheck:
+    test:
+      [
+        "CMD",
+        "node",
+        "-e",
+        "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+      ]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 40s
 
 services:
-  web:
-    image: 825125930465.dkr.ecr.ap-south-2.amazonaws.com/linkedin-automation:latest
-
-    env_file:
-      - .env
-
-    environment:
-      NODE_ENV: production
-      HOSTNAME: 0.0.0.0
-      PORT: "3000"
-
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://linkedin.anytimerequest.com}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://linkedin.anytimerequest.com}
-
+  web-blue:
+    <<: *web
+    container_name: linkedin-web-blue
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3002:3000"
 
-    restart: unless-stopped
-
-    init: true
-
-    stop_grace_period: 30s
-
-    logging: *default-logging
-
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
-        ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+  web-green:
+    <<: *web
+    container_name: linkedin-web-green
+    ports:
+      - "127.0.0.1:3003:3000"

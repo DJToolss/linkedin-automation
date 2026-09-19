@@ -11,13 +11,19 @@ export function isValidIanaTimeZone(timeZone: string): boolean {
 }
 
 export function listSupportedTimeZones(): string[] {
-  // "UTC" is a valid IANA zone (isValidIanaTimeZone accepts it, and it's the
-  // fallback default used throughout the composer/settings UI), but ICU's
+  // "UTC" is a valid IANA zone (isValidIanaTimeZone accepts it), but ICU's
   // supportedValuesOf("timeZone") list doesn't always include it as its own
-  // entry — put it first explicitly rather than relying on a value the
-  // caller's <select> options might otherwise silently omit.
-  const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [];
-  return zones.includes("UTC") ? zones : ["UTC", ...zones];
+  // entry. `Asia/Calcutta` is an alias of `Asia/Kolkata` and is also omitted
+  // from some ICU lists — insert it so the composer default can be selected.
+  const zones = typeof Intl.supportedValuesOf === "function" ? [...Intl.supportedValuesOf("timeZone")] : [];
+  const withUtc = zones.includes("UTC") ? zones : ["UTC", ...zones];
+  if (withUtc.includes("Asia/Calcutta")) return withUtc;
+
+  const kolkataIndex = withUtc.indexOf("Asia/Kolkata");
+  if (kolkataIndex >= 0) {
+    return [...withUtc.slice(0, kolkataIndex), "Asia/Calcutta", ...withUtc.slice(kolkataIndex)];
+  }
+  return ["Asia/Calcutta", ...withUtc];
 }
 
 function offsetMsForZoneAt(instant: Date, timeZone: string): number {

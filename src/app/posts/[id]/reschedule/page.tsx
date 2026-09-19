@@ -5,14 +5,15 @@ import { AppHeader } from "@/app/_components/app-header";
 import { reschedulePostedPostAction } from "@/app/posts/actions";
 import { PostComposer } from "@/app/posts/_components/post-composer";
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
-import { getPostedPostForUser } from "@/lib/posts/posts";
+import { DEFAULT_TIMEZONE } from "@/lib/posts/constants";
+import { getPostedPostForUser, listPendingScheduledAtIsosForUser } from "@/lib/posts/posts";
 import { listSupportedTimeZones } from "@/lib/time/timezone";
 
 export default async function ReschedulePostedPostPage({ params }: { params: Promise<{ id: string }> }) {
   const userId = await requireAuthenticatedUserId();
   const { id } = await params;
 
-  const post = await getPostedPostForUser(userId, id);
+  const [post, scheduledAtIsos] = await Promise.all([getPostedPostForUser(userId, id), listPendingScheduledAtIsosForUser(userId)]);
   if (!post) notFound();
 
   return (
@@ -38,9 +39,10 @@ export default async function ReschedulePostedPostPage({ params }: { params: Pro
             content: post.content,
             imageUrl: post.imageUrl,
             scheduledAtLocal: "",
-            timezone: post.timezone ?? "UTC",
+            timezone: post.timezone ?? DEFAULT_TIMEZONE,
           }}
           submitLabel="Schedule copy"
+          scheduledAtIsos={scheduledAtIsos}
           timeZones={listSupportedTimeZones()}
         />
       </div>

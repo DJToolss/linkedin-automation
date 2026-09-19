@@ -6,6 +6,7 @@ import { PostsPagination } from "@/app/posts/_components/posts-pagination";
 import { deletePostAction, publishNowAction } from "@/app/posts/actions";
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
 import { postListPreview } from "@/lib/linkedin/commentary-format";
+import { DEFAULT_TIMEZONE } from "@/lib/posts/constants";
 import { EDITABLE_STATUSES, countPostsForUserByTab, listPostsForUserPaginated, type Post } from "@/lib/posts/posts";
 import { formatZonedDateTime } from "@/lib/time/timezone";
 
@@ -34,7 +35,7 @@ function parsePage(value: string | undefined): number {
 }
 
 function PostCard({ post, tab }: { post: Post; tab: PostsTab }) {
-  const timezone = post.timezone ?? "UTC";
+  const timezone = post.timezone ?? DEFAULT_TIMEZONE;
   const scheduledLabel = post.scheduledAt ? formatZonedDateTime(post.scheduledAt, timezone) : null;
 
   return (

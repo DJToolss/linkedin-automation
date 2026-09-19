@@ -5,8 +5,10 @@ import { useFormStatus } from "react-dom";
 
 import type { PostFormState } from "@/app/posts/actions";
 import { ImageUploader } from "@/app/posts/_components/image-uploader";
-import { TimezonePicker } from "@/app/posts/_components/timezone-picker";
+import { ScheduleDatePicker } from "@/app/posts/_components/schedule-date-picker";
+import { resolveInitialZone, TimezonePicker } from "@/app/posts/_components/timezone-picker";
 import {
+  DEFAULT_TIMEZONE,
   MAX_DESCRIPTION_LENGTH,
   MAX_HEADING_LENGTH,
   MAX_SUBHEADING_LENGTH,
@@ -69,16 +71,19 @@ export function PostComposer({
   timeZones,
   existing,
   submitLabel,
+  scheduledAtIsos = [],
 }: {
   action: (state: PostFormState, formData: FormData) => Promise<PostFormState>;
   timeZones: string[];
   existing?: ExistingPost;
   submitLabel: string;
+  scheduledAtIsos?: string[];
 }) {
   const [state, formAction] = useActionState(action, initialState);
   const [heading, setHeading] = useState(existing?.heading ?? "");
   const [subHeading, setSubHeading] = useState(existing?.subHeading ?? "");
   const [content, setContent] = useState(existing?.content ?? "");
+  const [timezone, setTimezone] = useState(() => resolveInitialZone(existing?.timezone ?? DEFAULT_TIMEZONE, timeZones));
 
   return (
     <form action={formAction} className="space-y-5">
@@ -142,22 +147,21 @@ export function PostComposer({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div>
+        <div className="sm:col-span-2">
           <label className="block text-sm font-medium" htmlFor="scheduledAt">Date and time</label>
-          <input
-            className="mt-1 w-full rounded border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder:text-zinc-400"
-            defaultValue={existing?.scheduledAtLocal}
-            id="scheduledAt"
-            name="scheduledAt"
-            required
-            type="datetime-local"
-          />
+          <div className="mt-1">
+            <ScheduleDatePicker
+              defaultValue={existing?.scheduledAtLocal}
+              error={state.fieldErrors?.scheduledAt}
+              scheduledAtIsos={scheduledAtIsos}
+              timezone={timezone}
+            />
+          </div>
           <p className="mt-1 text-xs text-zinc-600">Needed to schedule. Skip this if you Post now.</p>
-          <FieldError errors={state.fieldErrors?.scheduledAt} />
         </div>
-        <div>
+        <div className="sm:col-span-2">
           <label className="block text-sm font-medium">Time zone</label>
-          <TimezonePicker defaultValue={existing?.timezone ?? "UTC"} error={state.fieldErrors?.timezone} timeZones={timeZones} />
+          <TimezonePicker error={state.fieldErrors?.timezone} onChange={setTimezone} timeZones={timeZones} value={timezone} />
         </div>
       </div>
 

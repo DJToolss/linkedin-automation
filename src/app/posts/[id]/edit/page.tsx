@@ -4,17 +4,18 @@ import { AppHeader } from "@/app/_components/app-header";
 import { updatePostAction } from "@/app/posts/actions";
 import { PostComposer } from "@/app/posts/_components/post-composer";
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
-import { getEditablePostForUser } from "@/lib/posts/posts";
+import { DEFAULT_TIMEZONE } from "@/lib/posts/constants";
+import { getEditablePostForUser, listPendingScheduledAtIsosForUser } from "@/lib/posts/posts";
 import { listSupportedTimeZones, utcToZonedInputValue } from "@/lib/time/timezone";
 
 export default async function EditPostPage({ params }: { params: Promise<{ id: string }> }) {
   const userId = await requireAuthenticatedUserId();
   const { id } = await params;
 
-  const post = await getEditablePostForUser(userId, id);
+  const [post, scheduledAtIsos] = await Promise.all([getEditablePostForUser(userId, id), listPendingScheduledAtIsosForUser(userId)]);
   if (!post) notFound();
 
-  const timezone = post.timezone ?? "UTC";
+  const timezone = post.timezone ?? DEFAULT_TIMEZONE;
   const scheduledAtLocal = post.scheduledAt ? utcToZonedInputValue(post.scheduledAt, timezone) : "";
 
   return (
@@ -32,6 +33,7 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
             timezone,
           }}
           submitLabel="Save changes"
+          scheduledAtIsos={scheduledAtIsos}
           timeZones={listSupportedTimeZones()}
         />
       </div>
