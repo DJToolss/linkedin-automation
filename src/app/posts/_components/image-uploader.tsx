@@ -73,8 +73,8 @@ export function ImageUploader({ existingImageUrl, error }: ImageUploaderProps) {
 
       {!showPreview ? (
         <div
-          className={`mt-1 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 transition-colors ${
-            dragging ? "border-blue-500 bg-blue-50/50" : "border-zinc-300 bg-zinc-50 hover:border-blue-400 hover:bg-blue-50/30"
+          className={`mt-1 flex cursor-pointer flex-col items-center justify-center rounded-[10px] border-2 border-dashed px-6 py-10 transition-colors ${
+            dragging ? "border-accent bg-accent-soft/50" : "border-border bg-surface-2 hover:border-accent hover:bg-accent-soft/30"
           }`}
           onDragEnter={(event) => {
             event.preventDefault();
@@ -96,8 +96,8 @@ export function ImageUploader({ existingImageUrl, error }: ImageUploaderProps) {
           role="button"
           tabIndex={0}
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-blue-700 shadow-sm ring-1 ring-zinc-200">
-            <svg aria-hidden="true" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface text-accent shadow-card ring-1 ring-border">
+            <svg aria-hidden="true" className="h-6 w-6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
               <path
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                 strokeLinecap="round"
@@ -105,28 +105,24 @@ export function ImageUploader({ existingImageUrl, error }: ImageUploaderProps) {
               />
             </svg>
           </div>
-          <p className="mt-4 text-sm font-medium text-zinc-900">Drop an image here, or click to browse</p>
-          <p className="mt-1 text-xs text-zinc-500">PNG, JPG, GIF, or WebP</p>
+          <p className="mt-4 text-[13.5px] font-medium text-text">Drop an image here, or click to browse</p>
+          <p className="mt-1 text-[12px] text-text-faint">PNG, JPG, GIF, or WebP</p>
         </div>
       ) : (
-        <div className="mt-1 overflow-hidden rounded-xl border border-zinc-200 bg-white">
+        <div className="ui-panel mt-1 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element -- local preview or Cloudinary URL */}
-          <img alt="Post image preview" className="max-h-64 w-full object-contain bg-zinc-100" src={previewUrl} />
-          <div className="flex items-center justify-between gap-3 border-t border-zinc-100 px-4 py-3">
+          <img alt="Post image preview" className="max-h-64 w-full bg-surface-2 object-contain" src={previewUrl} />
+          <div className="flex items-center justify-between gap-3 border-t border-border-soft px-4 py-3">
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-zinc-900">{fileName ?? "Current image"}</p>
-              {fileSize !== null && <p className="text-xs text-zinc-500">{formatFileSize(fileSize)}</p>}
+              <p className="truncate text-[13.5px] font-medium text-text">{fileName ?? "Current image"}</p>
+              {fileSize !== null && <p className="font-mono text-[12px] text-text-faint">{formatFileSize(fileSize)}</p>}
             </div>
             <div className="flex shrink-0 gap-2">
-              <button
-                className="rounded border px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-                onClick={() => inputRef.current?.click()}
-                type="button"
-              >
+              <button className="ui-btn-secondary px-3 py-1.5 text-[13px]" onClick={() => inputRef.current?.click()} type="button">
                 Replace
               </button>
               <button
-                className="rounded border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+                className="ui-btn-danger px-3 py-1.5 text-[13px]"
                 onClick={() => {
                   if (existingImageUrl && !fileName) handleRemoveExisting(true);
                   else clearSelection();
@@ -144,7 +140,7 @@ export function ImageUploader({ existingImageUrl, error }: ImageUploaderProps) {
         <input name="removeImage" type="hidden" value={removeExisting ? "on" : ""} />
       )}
 
-      {error?.length ? <p className="mt-1 text-sm text-red-700">{error[0]}</p> : null}
+      {error?.length ? <p className="ui-error">{error[0]}</p> : null}
     </div>
   );
 }

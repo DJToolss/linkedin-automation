@@ -1,5 +1,18 @@
 import type { ReactNode } from "react";
 
+import { ThemeSwitcher } from "@/app/_components/theme-switcher";
+
 export function AuthShell({ title, children }: { title: string; children: ReactNode }) {
-  return <main className="flex flex-1 items-center justify-center bg-zinc-50 px-4 py-12"><section className="w-full max-w-md rounded-xl border bg-white p-8 shadow-sm"><h1 className="text-2xl font-semibold">{title}</h1><p className="mt-2 text-sm text-zinc-600">LinkedIn Automation</p><div className="mt-8">{children}</div></section></main>;
+  return (
+    <main className="relative flex flex-1 items-center justify-center bg-bg px-4 py-12">
+      <div className="absolute right-6 top-6">
+        <ThemeSwitcher />
+      </div>
+      <section className="ui-panel w-full max-w-md p-8">
+        <p className="text-[12.5px] font-semibold text-accent">LinkedIn Automation</p>
+        <h1 className="ui-title mt-2">{title}</h1>
+        <div className="mt-8">{children}</div>
+      </section>
+    </main>
+  );
 }

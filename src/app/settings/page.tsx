@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { AppHeader } from "@/app/_components/app-header";
+import { AdminShell } from "@/app/_components/admin-shell";
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
 import { getAppUrlEnv } from "@/lib/env";
 import { getLinkedInAppSummary } from "@/lib/linkedin/app-credentials";
@@ -38,90 +38,112 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
   const redirectUri = getLinkedInRedirectUri(appUrl);
   const errorKey = typeof params.linkedin_error === "string" ? params.linkedin_error : undefined;
   const justConnected = params.linkedin_connected === "1";
+  const connectionTone =
+    connection?.status === "connected" ? "positive" : connection?.status === "requires_reconnect" ? "warn" : "negative";
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-12">
-      <AppHeader title="Settings" />
-
-      {errorKey && (
-        <p className="mt-6 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {ERROR_COPY[errorKey] ?? "Something went wrong connecting LinkedIn."}
-        </p>
-      )}
-      {justConnected && (
-        <p className="mt-6 rounded border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          LinkedIn connected.
-        </p>
-      )}
-
-      <section className="mt-8 rounded-xl border bg-zinc-50 p-6">
-        <h2 className="text-lg font-semibold">LinkedIn app credentials</h2>
-        <p className="mt-2 text-sm text-zinc-600">
-          Each account uses its own LinkedIn developer app. Register this exact callback URL in that app before
-          connecting:
-        </p>
-        <code className="mt-2 block rounded bg-white px-3 py-2 text-xs break-all text-zinc-800">{redirectUri}</code>
-
-        {app && (
-          <div className="mt-4 flex items-center justify-between rounded border bg-white px-4 py-3">
-            <div>
-              <p className="text-sm font-medium">Client ID: {app.clientId}</p>
-              <p className="text-xs text-zinc-600">Saved {app.updatedAt.toLocaleString()}</p>
-            </div>
-            <form action={removeLinkedInAppAction}>
-              <button className="rounded border px-3 py-1.5 text-sm font-medium text-red-700" type="submit">
-                Remove
-              </button>
-            </form>
-          </div>
+    <AdminShell breadcrumb="Account" title="Settings">
+      <div className="max-w-4xl space-y-4">
+        {errorKey && (
+          <p className="rounded-[10px] border border-border bg-negative-soft px-4 py-3 text-[13.5px] text-negative" role="alert">
+            {ERROR_COPY[errorKey] ?? "Something went wrong connecting LinkedIn."}
+          </p>
+        )}
+        {justConnected && (
+          <p className="rounded-[10px] border border-border bg-positive-soft px-4 py-3 text-[13.5px] text-positive">
+            LinkedIn connected.
+          </p>
         )}
 
-        <LinkedInAppForm hasApp={Boolean(app)} />
-      </section>
+        <section className="ui-panel p-[18px]">
+          <h2 className="ui-panel-title">LinkedIn app credentials</h2>
+          <p className="mt-2 text-[13.5px] text-text-muted">
+            Each account uses its own LinkedIn developer app. Register this exact callback URL in that app before connecting:
+          </p>
+          <code className="mt-3 block rounded-[8px] border border-border-soft bg-surface-2 px-3 py-2 font-mono text-[12px] break-all text-text">
+            {redirectUri}
+          </code>
 
-      <section className="mt-8 rounded-xl border bg-zinc-50 p-6">
-        <h2 className="text-lg font-semibold">LinkedIn connection</h2>
-
-        {connection ? (
-          <div className="mt-4 space-y-2 rounded border bg-white px-4 py-3 text-sm">
-            <p>
-              <span className="font-medium">Status:</span> {STATUS_COPY[connection.status] ?? connection.status}
-            </p>
-            <p>
-              <span className="font-medium">Member:</span> {connection.displayName ?? connection.personUrn}
-            </p>
-            <p>
-              <span className="font-medium">Token expires:</span> {connection.accessTokenExpiresAt.toLocaleString()}
-            </p>
-            <div className="flex gap-3 pt-2">
-              <Link className="rounded bg-blue-700 px-4 py-2 font-medium text-white" href="/api/linkedin/authorize">
-                {connection.status === "connected" ? "Reconnect" : "Reconnect now"}
-              </Link>
-              <form action={disconnectLinkedInAction}>
-                <button className="rounded border px-4 py-2 font-medium text-red-700" type="submit">
-                  Disconnect
+          {app && (
+            <div className="mt-4 flex items-center justify-between rounded-[8px] border border-border bg-surface px-4 py-3">
+              <div>
+                <p className="text-[13.5px] font-medium text-text">
+                  Client ID: <span className="font-mono">{app.clientId}</span>
+                </p>
+                <p className="font-mono text-[12px] text-text-muted">Saved {app.updatedAt.toLocaleString()}</p>
+              </div>
+              <form action={removeLinkedInAppAction}>
+                <button className="ui-btn-danger px-3 py-1.5 text-[13px]" type="submit">
+                  Remove
                 </button>
               </form>
             </div>
-          </div>
-        ) : (
-          <div className="mt-4 rounded border bg-white px-4 py-3 text-sm text-zinc-600">
-            <p>Not connected yet.</p>
-            {app ? (
-              <Link className="mt-3 inline-block rounded bg-blue-700 px-4 py-2 font-medium text-white" href="/api/linkedin/authorize">
-                Connect LinkedIn
-              </Link>
-            ) : (
-              <p className="mt-2">Save your app credentials above first.</p>
-            )}
-          </div>
-        )}
+          )}
 
-        <p className="mt-4 text-xs text-zinc-600">
-          Standard LinkedIn tokens are not refreshed automatically. Reconnect before the expiry date above to avoid
-          interrupting scheduled posts.
-        </p>
-      </section>
-    </main>
+          <LinkedInAppForm hasApp={Boolean(app)} />
+        </section>
+
+        <section className="ui-panel p-[18px]">
+          <h2 className="ui-panel-title">LinkedIn connection</h2>
+
+          {connection ? (
+            <div className="mt-4 space-y-2 rounded-[8px] border border-border bg-surface px-4 py-3 text-[13.5px]">
+              <p className="flex items-center gap-2">
+                <span className="font-semibold text-text">Status:</span>
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-[7px] px-2 py-0.5 text-[11.5px] font-semibold ${
+                    connectionTone === "positive"
+                      ? "bg-positive-soft text-positive"
+                      : connectionTone === "warn"
+                        ? "bg-warn-soft text-warn"
+                        : "bg-negative-soft text-negative"
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      connectionTone === "positive" ? "bg-positive" : connectionTone === "warn" ? "bg-warn" : "bg-negative"
+                    }`}
+                  />
+                  {STATUS_COPY[connection.status] ?? connection.status}
+                </span>
+              </p>
+              <p>
+                <span className="font-semibold text-text">Member:</span> {connection.displayName ?? connection.personUrn}
+              </p>
+              <p>
+                <span className="font-semibold text-text">Token expires:</span>{" "}
+                <span className="font-mono text-text-muted">{connection.accessTokenExpiresAt.toLocaleString()}</span>
+              </p>
+              <div className="flex gap-3 pt-2">
+                <Link className="ui-btn-primary" href="/api/linkedin/authorize">
+                  {connection.status === "connected" ? "Reconnect" : "Reconnect now"}
+                </Link>
+                <form action={disconnectLinkedInAction}>
+                  <button className="ui-btn-danger" type="submit">
+                    Disconnect
+                  </button>
+                </form>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-[8px] border border-border bg-surface px-4 py-3 text-[13.5px] text-text-muted">
+              <p>Not connected yet.</p>
+              {app ? (
+                <Link className="ui-btn-primary mt-3" href="/api/linkedin/authorize">
+                  Connect LinkedIn
+                </Link>
+              ) : (
+                <p className="mt-2">Save your app credentials above first.</p>
+              )}
+            </div>
+          )}
+
+          <p className="mt-4 text-[12px] text-text-muted">
+            Standard LinkedIn tokens are not refreshed automatically. Reconnect before the expiry date above to avoid interrupting
+            scheduled posts.
+          </p>
+        </section>
+      </div>
+    </AdminShell>
   );
 }

@@ -74,7 +74,7 @@ export function ScheduleDatePicker({
   return (
     <div>
       <input
-        className="mb-2 w-full rounded border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder:text-zinc-400"
+        className="ui-input mb-2 font-mono"
         id={name}
         name={name}
         placeholder="Select a date and time"
@@ -82,20 +82,20 @@ export function ScheduleDatePicker({
         value={combined}
       />
 
-      <div className="rounded-xl border border-zinc-200 bg-white p-3">
+      <div className="ui-panel p-3">
         <div className="flex items-center justify-between gap-2">
           <button
             aria-label="Previous month"
-            className="rounded border px-2 py-1 text-sm text-zinc-700 hover:bg-zinc-50"
+            className="ui-icon-btn h-8 w-8"
             onClick={() => setView((current) => shiftYearMonth(current.year, current.month, -1))}
             type="button"
           >
             ‹
           </button>
-          <p className="text-sm font-medium text-zinc-900">{monthTitle(view.year, view.month)}</p>
+          <p className="text-[13.5px] font-semibold text-text">{monthTitle(view.year, view.month)}</p>
           <button
             aria-label="Next month"
-            className="rounded border px-2 py-1 text-sm text-zinc-700 hover:bg-zinc-50"
+            className="ui-icon-btn h-8 w-8"
             onClick={() => setView((current) => shiftYearMonth(current.year, current.month, 1))}
             type="button"
           >
@@ -103,7 +103,7 @@ export function ScheduleDatePicker({
           </button>
         </div>
 
-        <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+        <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[11.5px] font-semibold text-text-faint">
           {WEEKDAYS.map((day) => (
             <div key={day}>{day}</div>
           ))}
@@ -129,14 +129,14 @@ export function ScheduleDatePicker({
                 aria-current={isToday ? "date" : undefined}
                 aria-label={label}
                 aria-pressed={isSelected}
-                className={`relative flex h-9 items-center justify-center rounded-lg text-sm ${
+                className={`relative flex h-9 items-center justify-center rounded-[7px] font-mono text-[13px] ${
                   isSelected
-                    ? "bg-blue-700 font-medium text-white"
+                    ? "bg-accent font-medium text-nav-text"
                     : hasScheduled
-                      ? "bg-blue-50 font-medium text-blue-800 ring-1 ring-blue-200 hover:bg-blue-100"
+                      ? "bg-accent-soft font-medium text-accent ring-1 ring-border hover:bg-accent-soft"
                       : isToday
-                        ? "font-medium text-blue-700 ring-1 ring-blue-200 hover:bg-blue-50"
-                        : "text-zinc-800 hover:bg-zinc-100"
+                        ? "font-medium text-accent ring-1 ring-border hover:bg-surface-2"
+                        : "text-text hover:bg-surface-2"
                 } ${isPast && !isSelected ? "opacity-40" : ""}`}
                 disabled={isPast && !isSelected}
                 key={cell.key}
@@ -145,30 +145,28 @@ export function ScheduleDatePicker({
               >
                 {cell.day}
                 {hasScheduled && (
-                  <span
-                    className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${isSelected ? "bg-white" : "bg-blue-700"}`}
-                  />
+                  <span className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${isSelected ? "bg-nav-text" : "bg-accent"}`} />
                 )}
               </button>
             );
           })}
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-3">
-          <label className="flex items-center gap-2 text-sm text-zinc-700">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-3">
+          <label className="flex items-center gap-2 text-[13px] text-text">
             Time
             <input
-              className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-zinc-900"
+              className="ui-input w-auto px-2 py-1.5 font-mono"
               onChange={(event) => setSelectedTime(event.target.value)}
               type="time"
               value={selectedTime}
             />
           </label>
-          <p className="text-xs text-zinc-600">Blue dates already have a scheduled post.</p>
+          <p className="text-[12px] text-text-muted">Highlighted dates already have a scheduled post.</p>
         </div>
       </div>
 
-      {error?.length ? <p className="mt-1 text-sm text-red-700">{error[0]}</p> : null}
+      {error?.length ? <p className="ui-error">{error[0]}</p> : null}
     </div>
   );
 }

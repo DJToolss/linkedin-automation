@@ -65,7 +65,7 @@ export function TimezonePicker({ timeZones, value, onChange, name = "timezone", 
         aria-controls={`${listId}-listbox`}
         aria-expanded={open}
         autoComplete="off"
-        className="mt-1 w-full rounded border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder:text-zinc-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+        className="ui-input mt-1"
         id={`${listId}-input`}
         onBlur={handleBlur}
         onChange={(event) => {
@@ -83,7 +83,7 @@ export function TimezonePicker({ timeZones, value, onChange, name = "timezone", 
       />
       {open && filteredZones.length > 0 && (
         <ul
-          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"
+          className="ui-panel absolute z-20 mt-1 max-h-56 w-full overflow-auto py-1"
           id={`${listId}-listbox`}
           role="listbox"
         >
@@ -91,7 +91,7 @@ export function TimezonePicker({ timeZones, value, onChange, name = "timezone", 
             <li key={zone} role="presentation">
               <button
                 aria-selected={zone === value}
-                className={`w-full px-3 py-2 text-left text-sm hover:bg-blue-50 ${zone === value ? "bg-blue-50 font-medium text-blue-700" : "text-zinc-800"}`}
+                className={`w-full px-3 py-2 text-left text-[13px] hover:bg-surface-2 ${zone === value ? "bg-accent-soft font-medium text-accent" : "text-text"}`}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => chooseZone(zone)}
                 role="option"
@@ -104,11 +104,11 @@ export function TimezonePicker({ timeZones, value, onChange, name = "timezone", 
         </ul>
       )}
       {open && query.trim() && filteredZones.length === 0 && (
-        <p className="absolute z-20 mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-500 shadow-lg">
+        <p className="ui-panel absolute z-20 mt-1 w-full px-3 py-2 text-[13px] text-text-muted">
           No matching time zones.
         </p>
       )}
-      {error?.length ? <p className="mt-1 text-sm text-red-700">{error[0]}</p> : null}
+      {error?.length ? <p className="ui-error">{error[0]}</p> : null}
     </div>
   );
 }

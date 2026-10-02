@@ -17,21 +17,23 @@ export function PostTabs({
   ];
 
   return (
-    <div className="border-b">
-      <nav aria-label="Post lists" className="-mb-px flex gap-6">
+    <div className="inline-flex rounded-[8px] bg-surface-2 p-1">
+      <nav aria-label="Post lists" className="flex gap-1">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <Link
               aria-current={isActive ? "page" : undefined}
-              className={`border-b-2 pb-3 text-sm font-medium transition-colors ${
-                isActive ? "border-blue-700 text-blue-700" : "border-transparent text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
+              className={`rounded-[7px] px-3 py-1.5 text-[13px] font-medium ${
+                isActive ? "bg-surface text-text shadow-card" : "text-text-muted hover:text-text"
               }`}
               href={tab.id === "scheduled" ? "/posts" : `/posts?tab=${tab.id}`}
               key={tab.id}
             >
               {tab.label}
-              <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">{tab.count}</span>
+              <span className={`ml-2 rounded-full px-2 py-0.5 font-mono text-[11.5px] ${isActive ? "bg-surface-2 text-text" : "bg-bg text-text-muted"}`}>
+                {tab.count}
+              </span>
             </Link>
           );
         })}
