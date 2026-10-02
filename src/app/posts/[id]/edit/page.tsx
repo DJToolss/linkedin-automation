@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { AppHeader } from "@/app/_components/app-header";
+import { AdminShell } from "@/app/_components/admin-shell";
 import { updatePostAction } from "@/app/posts/actions";
 import { PostComposer } from "@/app/posts/_components/post-composer";
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
@@ -19,9 +19,8 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
   const scheduledAtLocal = post.scheduledAt ? utcToZonedInputValue(post.scheduledAt, timezone) : "";
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-6 py-12">
-      <AppHeader title="Edit post" />
-      <div className="mt-8">
+    <AdminShell breadcrumb="Posts / Edit" title="Edit post">
+      <div className="ui-panel max-w-2xl p-[18px]">
         <PostComposer
           action={updatePostAction.bind(null, post.id)}
           existing={{
@@ -37,6 +36,6 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
           timeZones={listSupportedTimeZones()}
         />
       </div>
-    </main>
+    </AdminShell>
   );
 }

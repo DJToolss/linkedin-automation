@@ -1,29 +1,283 @@
 @import "tailwindcss";
 
-/*
- * This app is intentionally light-only — every page sets an explicit light
- * background (bg-white / bg-zinc-50) and no component uses a `dark:`
- * variant. Declaring color-scheme: light stops browsers from applying their
- * own dark rendering to native form controls when the OS is in dark mode;
- * without it, inputs kept a white background while inherited text (from the
- * old `prefers-color-scheme: dark` override below) turned near-white too,
- * making every form field's text invisible.
- */
-:root {
+:root,
+[data-theme="light"] {
   color-scheme: light;
-  --background: #ffffff;
-  --foreground: #171717;
+
+  --bg: #f7efe2;
+  --surface: #fffbf3;
+  --surface-2: #f1e5d2;
+
+  --border: #e2d2b8;
+  --border-soft: #ecdfc7;
+
+  --text: #2c201c;
+  --text-muted: #71594f;
+  --text-faint: #a18e7c;
+
+  --nav-bg: #6e2140;
+  --nav-bg-hover: #f1e5d2;
+  --nav-text: #ffffff;
+  --nav-text-active: #ffffff;
+  --nav-hover-text: #6e2140;
+
+  --accent: #6e2140;
+  --accent-soft: #f1dce2;
+  --accent-hover: #54172f;
+
+  --positive: #4c6e45;
+  --positive-soft: #e7eedf;
+
+  --negative: #a93a3a;
+  --negative-soft: #f5ded9;
+
+  --warn: #a5722a;
+  --warn-soft: #f3e4c9;
+
+  --radius: 10px;
+  --shadow-card: 0 1px 2px rgba(60, 30, 20, 0.05);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #070b14;
+  --surface: #10182a;
+  --surface-2: #182338;
+
+  --border: #2a3c5c;
+  --border-soft: #22314c;
+
+  --text: #e7eefb;
+  --text-muted: #9aadc8;
+  --text-faint: #6d82a3;
+
+  --nav-bg: #0b152c;
+  --nav-bg-hover: #1c3358;
+  --nav-text: #dce8ff;
+  --nav-text-active: #ffffff;
+  --nav-hover-text: #dce8ff;
+
+  --accent: #6ea0ff;
+  --accent-soft: #1a2d52;
+  --accent-hover: #8bb4ff;
+
+  --positive: #86c48a;
+  --positive-soft: #163126;
+
+  --negative: #e38b8b;
+  --negative-soft: #3a1f28;
+
+  --warn: #e0b36a;
+  --warn-soft: #332616;
+
+  --shadow-card: 0 1px 2px rgba(2, 8, 24, 0.5), 0 8px 24px rgba(4, 12, 32, 0.35);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-soft: var(--border-soft);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-nav-bg: var(--nav-bg);
+  --color-nav-bg-hover: var(--nav-bg-hover);
+  --color-nav-text: var(--nav-text);
+  --color-nav-text-active: var(--nav-text-active);
+  --color-nav-hover-text: var(--nav-hover-text);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-hover: var(--accent-hover);
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-negative: var(--negative);
+  --color-negative-soft: var(--negative-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --font-sans: var(--font-inter), Inter, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), "IBM Plex Mono", monospace;
+  --shadow-card: 0 1px 2px rgba(60, 30, 20, 0.05);
+}
+
+html {
+  background: var(--bg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 400;
+}
+
+@layer components {
+  .ui-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-card);
+  }
+
+  .ui-label {
+    display: block;
+    color: var(--text);
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+
+  .ui-help {
+    margin-top: 0.25rem;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  .ui-error {
+    margin-top: 0.25rem;
+    color: var(--negative);
+    font-size: 13px;
+  }
+
+  .ui-input {
+    width: 100%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 13.5px;
+    outline: none;
+  }
+
+  .ui-input::placeholder {
+    color: var(--text-faint);
+  }
+
+  .ui-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  .ui-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: var(--nav-text);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .ui-btn-primary:hover {
+    background: var(--accent-hover);
+  }
+
+  .ui-btn-primary:disabled {
+    opacity: 0.6;
+  }
+
+  .ui-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .ui-btn-secondary:hover {
+    background: var(--surface-2);
+  }
+
+  .ui-btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    color: var(--negative);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .ui-btn-danger:hover {
+    background: var(--negative-soft);
+  }
+
+  .ui-icon-btn {
+    display: inline-flex;
+    height: 34px;
+    width: 34px;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .ui-icon-btn:hover {
+    background: var(--surface-2);
+  }
+
+  .ui-title {
+    color: var(--text);
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+
+  .ui-panel-title {
+    color: var(--text);
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    border-radius: 7px;
+    padding: 8px 10px;
+    color: var(--nav-text);
+    font-size: 13.5px;
+    font-weight: 500;
+  }
+
+  .sidebar-link svg {
+    width: 17px;
+    height: 17px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .sidebar-link[aria-current="page"] {
+    background: color-mix(in srgb, var(--nav-text) 12%, transparent);
+    color: var(--nav-text-active);
+    box-shadow: inset 3px 0 0 var(--nav-text);
+  }
+
+  .sidebar-link:hover {
+    background: var(--nav-bg-hover);
+    color: var(--nav-hover-text);
+  }
 }

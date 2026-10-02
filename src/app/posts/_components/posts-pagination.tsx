@@ -27,14 +27,14 @@ export function PostsPagination({ tab, page, totalPages, total, pageSize }: Post
   const pages = Array.from({ length: windowEnd - windowStart + 1 }, (_, index) => windowStart + index);
 
   return (
-    <nav aria-label="Posts pagination" className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-      <p className="text-sm text-zinc-600">
+    <nav aria-label="Posts pagination" className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+      <p className="font-mono text-[12.5px] text-text-muted">
         Showing {start}–{end} of {total}
       </p>
       <div className="flex flex-wrap items-center gap-1">
         <Link
           aria-disabled={page <= 1}
-          className={`rounded border px-3 py-1.5 text-sm font-medium ${page <= 1 ? "pointer-events-none opacity-40" : "hover:bg-zinc-50"}`}
+          className={`ui-btn-secondary px-3 py-1.5 text-[13px] ${page <= 1 ? "pointer-events-none opacity-40" : ""}`}
           href={pageHref(tab, page - 1)}
         >
           Previous
@@ -42,8 +42,8 @@ export function PostsPagination({ tab, page, totalPages, total, pageSize }: Post
         {pages.map((pageNumber) => (
           <Link
             aria-current={pageNumber === page ? "page" : undefined}
-            className={`min-w-9 rounded border px-3 py-1.5 text-center text-sm font-medium ${
-              pageNumber === page ? "border-blue-700 bg-blue-700 text-white" : "hover:bg-zinc-50"
+            className={`min-w-9 rounded-[8px] border px-3 py-1.5 text-center font-mono text-[13px] font-medium ${
+              pageNumber === page ? "border-accent bg-accent text-nav-text" : "border-border bg-surface text-text hover:bg-surface-2"
             }`}
             href={pageHref(tab, pageNumber)}
             key={pageNumber}
@@ -53,7 +53,7 @@ export function PostsPagination({ tab, page, totalPages, total, pageSize }: Post
         ))}
         <Link
           aria-disabled={page >= totalPages}
-          className={`rounded border px-3 py-1.5 text-sm font-medium ${page >= totalPages ? "pointer-events-none opacity-40" : "hover:bg-zinc-50"}`}
+          className={`ui-btn-secondary px-3 py-1.5 text-[13px] ${page >= totalPages ? "pointer-events-none opacity-40" : ""}`}
           href={pageHref(tab, page + 1)}
         >
           Next

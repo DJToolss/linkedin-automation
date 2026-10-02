@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { AppHeader } from "@/app/_components/app-header";
+import { AdminShell } from "@/app/_components/admin-shell";
 import { PostTabs, type PostsTab } from "@/app/posts/_components/post-tabs";
 import { PostsPagination } from "@/app/posts/_components/posts-pagination";
 import { deletePostAction, publishNowAction } from "@/app/posts/actions";
@@ -20,6 +20,16 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
+const STATUS_TONE: Record<string, "positive" | "negative" | "warn"> = {
+  posted: "positive",
+  failed: "negative",
+  requires_reconnect: "negative",
+  cancelled: "negative",
+  scheduled: "warn",
+  publishing: "warn",
+  draft: "warn",
+};
+
 function isEditable(status: string): boolean {
   return (EDITABLE_STATUSES as readonly string[]).includes(status);
 }
@@ -34,54 +44,74 @@ function parsePage(value: string | undefined): number {
   return Math.floor(parsed);
 }
 
+function StatusBadge({ status }: { status: string }) {
+  const tone = STATUS_TONE[status] ?? "warn";
+  const tones = {
+    positive: "bg-positive-soft text-positive",
+    negative: "bg-negative-soft text-negative",
+    warn: "bg-warn-soft text-warn",
+  };
+  const dots = {
+    positive: "bg-positive",
+    negative: "bg-negative",
+    warn: "bg-warn",
+  };
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-[7px] px-2 py-0.5 text-[11.5px] font-semibold ${tones[tone]}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${dots[tone]}`} />
+      {STATUS_LABEL[status] ?? status}
+    </span>
+  );
+}
+
 function PostCard({ post, tab }: { post: Post; tab: PostsTab }) {
   const timezone = post.timezone ?? DEFAULT_TIMEZONE;
   const scheduledLabel = post.scheduledAt ? formatZonedDateTime(post.scheduledAt, timezone) : null;
 
   return (
-    <li className="rounded-xl border bg-zinc-50 p-5">
+    <li className="ui-panel p-[18px]">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          {tab === "scheduled" && <p className="text-sm font-medium">{STATUS_LABEL[post.status] ?? post.status}</p>}
-          <p className={`line-clamp-2 text-sm text-zinc-700 ${tab === "scheduled" ? "mt-1" : ""}`}>
+          {tab === "scheduled" && <StatusBadge status={post.status} />}
+          <p className={`line-clamp-2 text-[13.5px] text-text ${tab === "scheduled" ? "mt-2" : ""}`}>
             {postListPreview({ heading: post.heading, subHeading: post.subHeading, description: post.content })}
           </p>
           {post.imageUrl && (
-            <p className="mt-1 text-xs text-zinc-500">{tab === "posted" ? "Includes image" : "Image attached"}</p>
+            <p className="mt-1 text-[12px] text-text-faint">{tab === "posted" ? "Includes image" : "Image attached"}</p>
           )}
-          <p className="mt-2 text-xs text-zinc-600">
+          <p className="mt-2 font-mono text-[12px] text-text-muted">
             {tab === "posted"
               ? `Posted ${formatZonedDateTime(post.updatedAt, timezone)} (${timezone})`
               : scheduledLabel
                 ? `Scheduled for ${scheduledLabel} (${timezone})`
                 : "Not scheduled"}
           </p>
-          {post.errorMessage && <p className="mt-1 text-xs text-red-700">{post.errorMessage}</p>}
+          {post.errorMessage && <p className="ui-error">{post.errorMessage}</p>}
         </div>
 
         <div className="flex shrink-0 flex-wrap justify-end gap-2">
           {tab === "posted" ? (
             <>
-              <Link className="rounded border px-3 py-1.5 text-sm font-medium" href={`/posts/${post.id}`}>
+              <Link className="ui-btn-secondary px-3 py-1.5 text-[13px]" href={`/posts/${post.id}`}>
                 Open
               </Link>
-              <Link className="rounded border border-blue-700 px-3 py-1.5 text-sm font-medium text-blue-700" href={`/posts/${post.id}/reschedule`}>
+              <Link className="ui-btn-secondary px-3 py-1.5 text-[13px]" href={`/posts/${post.id}/reschedule`}>
                 Reschedule
               </Link>
             </>
           ) : (
             isEditable(post.status) && (
               <>
-                <Link className="rounded border px-3 py-1.5 text-sm font-medium" href={`/posts/${post.id}/edit`}>
+                <Link className="ui-btn-secondary px-3 py-1.5 text-[13px]" href={`/posts/${post.id}/edit`}>
                   Edit
                 </Link>
                 <form action={publishNowAction.bind(null, post.id)}>
-                  <button className="rounded border border-blue-700 px-3 py-1.5 text-sm font-medium text-blue-700" type="submit">
+                  <button className="ui-btn-secondary px-3 py-1.5 text-[13px]" type="submit">
                     Post now
                   </button>
                 </form>
                 <form action={deletePostAction.bind(null, post.id)}>
-                  <button className="rounded border px-3 py-1.5 text-sm font-medium text-red-700" type="submit">
+                  <button className="ui-btn-danger px-3 py-1.5 text-[13px]" type="submit">
                     Delete
                   </button>
                 </form>
@@ -111,37 +141,41 @@ export default async function PostsPage({
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-12">
-      <AppHeader title="Your posts" />
-
-      <div className="mt-8 flex justify-end">
-        <Link className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white" href="/posts/new">
+    <AdminShell
+      action={
+        <Link className="ui-btn-primary" href="/posts/new">
           New post
         </Link>
+      }
+      breadcrumb="Posts"
+      title="Your posts"
+    >
+      <div className="max-w-4xl">
+        <PostTabs activeTab={activeTab} postedCount={postedCount} scheduledCount={scheduledCount} />
+
+        {paginated.items.length === 0 ? (
+          <div className="ui-panel mt-4 p-[18px]">
+            <p className="text-[13.5px] text-text-muted">
+              {activeTab === "posted" ? "No posted posts yet." : "No scheduled posts yet. Create your first one."}
+            </p>
+          </div>
+        ) : (
+          <>
+            <ul className="mt-4 space-y-3">
+              {paginated.items.map((post) => (
+                <PostCard key={post.id} post={post} tab={activeTab} />
+              ))}
+            </ul>
+            <PostsPagination
+              page={paginated.page}
+              pageSize={paginated.pageSize}
+              tab={activeTab}
+              total={paginated.total}
+              totalPages={paginated.totalPages}
+            />
+          </>
+        )}
       </div>
-
-      <PostTabs activeTab={activeTab} postedCount={postedCount} scheduledCount={scheduledCount} />
-
-      {paginated.items.length === 0 ? (
-        <p className="mt-8 text-sm text-zinc-600">
-          {activeTab === "posted" ? "No posted posts yet." : "No scheduled posts yet. Create your first one."}
-        </p>
-      ) : (
-        <>
-          <ul className="mt-4 space-y-4">
-            {paginated.items.map((post) => (
-              <PostCard key={post.id} post={post} tab={activeTab} />
-            ))}
-          </ul>
-          <PostsPagination
-            page={paginated.page}
-            pageSize={paginated.pageSize}
-            tab={activeTab}
-            total={paginated.total}
-            totalPages={paginated.totalPages}
-          />
-        </>
-      )}
-    </main>
+    </AdminShell>
   );
 }

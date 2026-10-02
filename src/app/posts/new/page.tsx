@@ -1,4 +1,4 @@
-import { AppHeader } from "@/app/_components/app-header";
+import { AdminShell } from "@/app/_components/admin-shell";
 import { createPostAction } from "@/app/posts/actions";
 import { PostComposer } from "@/app/posts/_components/post-composer";
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
@@ -9,11 +9,10 @@ export default async function NewPostPage() {
   const userId = await requireAuthenticatedUserId();
   const scheduledAtIsos = await listPendingScheduledAtIsosForUser(userId);
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-6 py-12">
-      <AppHeader title="New post" />
-      <div className="mt-8">
+    <AdminShell breadcrumb="Posts / New" title="New post">
+      <div className="ui-panel max-w-2xl p-[18px]">
         <PostComposer action={createPostAction} scheduledAtIsos={scheduledAtIsos} submitLabel="Schedule post" timeZones={listSupportedTimeZones()} />
       </div>
-    </main>
+    </AdminShell>
   );
 }
