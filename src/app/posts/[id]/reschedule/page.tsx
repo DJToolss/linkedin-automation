@@ -19,7 +19,7 @@ export default async function ReschedulePostedPostPage({ params }: { params: Pro
   return (
     <AdminShell breadcrumb="Posts / Reschedule" title="Reschedule post">
       <div className="max-w-2xl">
-        <Link className="text-[13px] font-medium text-accent hover:text-accent-hover" href={`/posts/${post.id}`}>
+        <Link className="text-[13px] font-medium text-brass hover:text-brass-dark" href={`/posts/${post.id}`}>
           ← Back to posted post
         </Link>
 

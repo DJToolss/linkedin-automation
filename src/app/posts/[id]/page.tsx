@@ -22,7 +22,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
   return (
     <AdminShell breadcrumb="Posts / Posted" title="Posted">
       <div className="max-w-2xl">
-        <Link className="text-[13px] font-medium text-accent hover:text-accent-hover" href="/posts?tab=posted">
+        <Link className="text-[13px] font-medium text-brass hover:text-brass-dark" href="/posts?tab=posted">
           ← Back to posted
         </Link>
 
@@ -45,7 +45,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
           </dl>
 
           <div className="mt-6 space-y-3">
-            {post.heading?.trim() && <p className="text-[15px] font-bold leading-relaxed tracking-[-0.01em] text-text">{post.heading.trim()}</p>}
+            {post.heading?.trim() && <p className="text-[15px] font-semibold leading-relaxed text-text">{post.heading.trim()}</p>}
             {post.subHeading?.trim() && <p className="text-[13.5px] font-medium italic text-text-muted">{post.subHeading.trim()}</p>}
             {post.content.trim() && <div className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-text">{post.content.trim()}</div>}
           </div>
@@ -53,7 +53,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
           {post.imageUrl && (
             <div className="mt-6">
               {/* eslint-disable-next-line @next/next/no-img-element -- Cloudinary URL from user upload, not a static asset */}
-              <img alt="Post image" className="max-h-[32rem] w-full rounded-[10px] border border-border object-contain" src={post.imageUrl} />
+              <img alt="Post image" className="max-h-[32rem] w-full rounded-[10px] border border-line object-contain" src={post.imageUrl} />
             </div>
           )}
 

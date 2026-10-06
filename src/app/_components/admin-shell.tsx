@@ -23,20 +23,20 @@ export async function AdminShell({
     <div className="min-h-full bg-bg">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[232px] flex-col bg-nav-bg md:flex">
         <div className="px-4 py-5">
-          <p className="text-[13.5px] font-bold tracking-[-0.015em] text-nav-text">LinkedIn Automation</p>
-          <p className="mt-1 text-[11.5px] text-nav-text/70">Publishing workspace</p>
+          <p className="font-display text-[15px] font-medium text-nav-text">LinkedIn Automation</p>
+          <p className="mt-1 text-[11.5px] text-header-text-muted">Publishing workspace</p>
         </div>
         <div className="flex-1 overflow-y-auto px-3 pb-4">
           <SidebarNav />
         </div>
-        <div className="border-t border-nav-text/15 px-3 py-4">
+        <div className="border-t border-header-control-border px-3 py-4">
           <div className="flex items-center gap-3 px-1">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] bg-nav-text/12 text-[12px] font-semibold text-nav-text">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] bg-header-control-bg text-[12px] font-semibold text-nav-text">
               {initials}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-medium text-nav-text">{user?.name ?? "Account"}</p>
-              <p className="truncate font-mono text-[11.5px] text-nav-text/70">{user?.email}</p>
+              <p className="truncate font-mono text-[11.5px] text-header-text-muted">{user?.email}</p>
             </div>
           </div>
           <form action={logoutAction} className="mt-3">
@@ -53,19 +53,19 @@ export async function AdminShell({
       </aside>
 
       <div className="md:pl-[232px]">
-        <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-border-soft bg-bg px-7 py-3">
+        <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-header-control-border bg-nav-bg px-7 py-3">
           <div>
-            <p className="text-[11.5px] text-text-faint">{breadcrumb ?? "Workspace"}</p>
-            <h1 className="ui-title mt-0.5">{title}</h1>
+            <p className="text-[11.5px] text-header-text-muted">{breadcrumb ?? "Workspace"}</p>
+            <h1 className="ui-title-header mt-0.5">{title}</h1>
           </div>
           <div className="flex items-center gap-2">
-            <ThemeSwitcher />
+            <ThemeSwitcher variant="header" />
             {action}
           </div>
         </header>
 
-        <div className="border-b border-border-soft bg-nav-bg px-4 py-3 md:hidden">
-          <p className="text-[13px] font-bold text-nav-text">LinkedIn Automation</p>
+        <div className="border-b border-header-control-border bg-nav-bg px-4 py-3 md:hidden">
+          <p className="font-display text-[15px] font-medium text-nav-text">LinkedIn Automation</p>
           <div className="mt-2">
             <SidebarNav />
           </div>

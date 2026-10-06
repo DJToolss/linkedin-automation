@@ -50,7 +50,7 @@ const ICONS: Record<string, () => ReactNode> = {
 function NavGroup({ label, links, pathname }: { label: string; links: typeof workspaceLinks; pathname: string }) {
   return (
     <div>
-      <p className="px-2.5 pb-2 text-[11px] font-semibold text-nav-text/70">{label}</p>
+      <p className="sidebar-section px-2.5 pb-2">{label}</p>
       <div className="space-y-0.5">
         {links.map((link) => {
           const Icon = ICONS[link.href];

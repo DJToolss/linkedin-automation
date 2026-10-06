@@ -52,7 +52,7 @@ function LinkedInPreview({ heading, subHeading, description }: { heading: string
 
   return (
     <div className="space-y-3 text-[13.5px] leading-relaxed text-text">
-      {heading.trim() && <p className="text-[15px] font-bold tracking-[-0.01em]">{heading.trim()}</p>}
+      {heading.trim() && <p className="text-[15px] font-semibold">{heading.trim()}</p>}
       {subHeading.trim() && <p className="text-[13px] font-medium italic text-text-muted">{subHeading.trim()}</p>}
       {description.trim() && <p className="whitespace-pre-wrap">{description.trim()}</p>}
     </div>
@@ -80,7 +80,7 @@ export function PostComposer({
 
   return (
     <form action={formAction} className="space-y-5">
-      <div className="rounded-[10px] border border-border bg-accent-soft/60 p-4 text-[13.5px] text-text">
+      <div className="ui-notice p-4 text-[13.5px] text-text">
         LinkedIn does not support native bold in the API. Heading and subheading are styled with Unicode characters so they appear bold and italic on LinkedIn.
       </div>
 
@@ -144,8 +144,8 @@ export function PostComposer({
         <FieldError errors={state.fieldErrors?.content} />
       </div>
 
-      <div className="rounded-[10px] border border-border bg-surface-2 p-4">
-        <p className="text-[12px] font-semibold text-text-faint">LinkedIn preview</p>
+      <div className="rounded-[10px] border border-line bg-paper-2 p-4">
+        <p className="text-[12px] font-semibold text-slate">LinkedIn preview</p>
         <div className="mt-3">
           <LinkedInPreview description={content} heading={heading} subHeading={subHeading} />
         </div>

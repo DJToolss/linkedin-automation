@@ -10,32 +10,34 @@ export default function GlobalError({ reset }: { reset: () => void }) {
       <body>
         <style>{`
           :root {
-            --bg: #F7EFE2;
-            --surface: #FFFBF3;
-            --border: #E2D2B8;
-            --text: #2C201C;
-            --text-muted: #71594F;
+            --paper: #F5F3EC;
+            --card: #FFFFFF;
+            --line: #DEDAC9;
+            --ink: #101C2E;
+            --slate: #57677E;
+            --brass: #B8874F;
+            --accent-ink: #241704;
           }
           body {
-            background: var(--bg);
-            color: var(--text);
+            background: var(--paper);
+            color: var(--ink);
             font-family: Inter, system-ui, sans-serif;
             margin: 0;
             min-height: 100%;
             padding: 2rem;
           }
         `}</style>
-        <h1 style={{ fontSize: "21px", fontWeight: 700, letterSpacing: "-0.015em" }}>Something went wrong</h1>
-        <p style={{ color: "var(--text-muted)", fontSize: "13.5px", marginTop: "0.75rem" }}>An unexpected error occurred. Please try again.</p>
+        <h1 style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: "21px", fontWeight: 500 }}>Something went wrong</h1>
+        <p style={{ color: "var(--slate)", fontSize: "13.5px", marginTop: "0.75rem" }}>An unexpected error occurred. Please try again.</p>
         <button
           onClick={() => reset()}
           style={{
             marginTop: "1.25rem",
             padding: "0.5rem 1rem",
-            border: "1px solid var(--border)",
+            border: "1px solid var(--brass)",
             borderRadius: "8px",
-            background: "var(--surface)",
-            color: "var(--text)",
+            background: "var(--brass)",
+            color: "var(--accent-ink)",
             cursor: "pointer",
           }}
           type="button"

@@ -131,12 +131,12 @@ export function ScheduleDatePicker({
                 aria-pressed={isSelected}
                 className={`relative flex h-9 items-center justify-center rounded-[7px] font-mono text-[13px] ${
                   isSelected
-                    ? "bg-accent font-medium text-nav-text"
+                    ? "bg-brass font-medium text-accent-ink"
                     : hasScheduled
-                      ? "bg-accent-soft font-medium text-accent ring-1 ring-border hover:bg-accent-soft"
+                      ? "bg-paper-2 font-medium text-brass ring-1 ring-line hover:bg-paper-2"
                       : isToday
-                        ? "font-medium text-accent ring-1 ring-border hover:bg-surface-2"
-                        : "text-text hover:bg-surface-2"
+                        ? "font-medium text-brass ring-1 ring-line hover:bg-paper-2"
+                        : "text-text hover:bg-paper-2"
                 } ${isPast && !isSelected ? "opacity-40" : ""}`}
                 disabled={isPast && !isSelected}
                 key={cell.key}
@@ -145,14 +145,14 @@ export function ScheduleDatePicker({
               >
                 {cell.day}
                 {hasScheduled && (
-                  <span className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${isSelected ? "bg-nav-text" : "bg-accent"}`} />
+                  <span className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${isSelected ? "bg-accent-ink" : "bg-brass"}`} />
                 )}
               </button>
             );
           })}
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-3">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
           <label className="flex items-center gap-2 text-[13px] text-text">
             Time
             <input
