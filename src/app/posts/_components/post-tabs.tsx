@@ -17,7 +17,7 @@ export function PostTabs({
   ];
 
   return (
-    <div className="inline-flex rounded-[8px] bg-surface-2 p-1">
+    <div className="ui-tabs">
       <nav aria-label="Post lists" className="flex gap-1">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -25,13 +25,13 @@ export function PostTabs({
             <Link
               aria-current={isActive ? "page" : undefined}
               className={`rounded-[7px] px-3 py-1.5 text-[13px] font-medium ${
-                isActive ? "bg-surface text-text shadow-card" : "text-text-muted hover:text-text"
+                isActive ? "bg-card text-text shadow-card" : "text-slate hover:text-text"
               }`}
               href={tab.id === "scheduled" ? "/posts" : `/posts?tab=${tab.id}`}
               key={tab.id}
             >
               {tab.label}
-              <span className={`ml-2 rounded-full px-2 py-0.5 font-mono text-[11.5px] ${isActive ? "bg-surface-2 text-text" : "bg-bg text-text-muted"}`}>
+              <span className={`ml-2 rounded-[6px] px-2 py-0.5 font-mono text-[11.5px] ${isActive ? "bg-paper-2 text-text" : "bg-paper text-slate"}`}>
                 {tab.count}
               </span>
             </Link>

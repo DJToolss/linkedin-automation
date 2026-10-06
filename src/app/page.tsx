@@ -9,8 +9,8 @@ export default function Home() {
         <ThemeSwitcher />
       </div>
       <section className="max-w-2xl text-center">
-        <p className="text-[13.5px] font-semibold text-accent">LinkedIn Automation</p>
-        <h1 className="mt-4 text-[32px] font-bold tracking-[-0.02em] text-text">Plan your next LinkedIn post with confidence.</h1>
+        <p className="text-[13.5px] font-semibold text-brass">LinkedIn Automation</p>
+        <h1 className="mt-4 font-display text-[32px] font-medium text-text">Plan your next LinkedIn post with confidence.</h1>
         <p className="mt-5 text-[15px] text-text-muted">Create, schedule, and publish posts from one focused workspace.</p>
         <div className="mt-8 flex justify-center gap-3">
           <Link className="ui-btn-primary" href="/register">

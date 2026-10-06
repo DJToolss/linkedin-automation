@@ -43,7 +43,7 @@ export function PostsPagination({ tab, page, totalPages, total, pageSize }: Post
           <Link
             aria-current={pageNumber === page ? "page" : undefined}
             className={`min-w-9 rounded-[8px] border px-3 py-1.5 text-center font-mono text-[13px] font-medium ${
-              pageNumber === page ? "border-accent bg-accent text-nav-text" : "border-border bg-surface text-text hover:bg-surface-2"
+              pageNumber === page ? "border-brass bg-brass text-accent-ink" : "border-line bg-card text-text hover:bg-paper-2"
             }`}
             href={pageHref(tab, pageNumber)}
             key={pageNumber}

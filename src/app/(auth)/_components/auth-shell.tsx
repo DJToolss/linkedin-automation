@@ -9,7 +9,7 @@ export function AuthShell({ title, children }: { title: string; children: ReactN
         <ThemeSwitcher />
       </div>
       <section className="ui-panel w-full max-w-md p-8">
-        <p className="text-[12.5px] font-semibold text-accent">LinkedIn Automation</p>
+        <p className="text-[12.5px] font-semibold text-brass">LinkedIn Automation</p>
         <h1 className="ui-title mt-2">{title}</h1>
         <div className="mt-8">{children}</div>
       </section>

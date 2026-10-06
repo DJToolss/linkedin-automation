@@ -74,7 +74,7 @@ export function ImageUploader({ existingImageUrl, error }: ImageUploaderProps) {
       {!showPreview ? (
         <div
           className={`mt-1 flex cursor-pointer flex-col items-center justify-center rounded-[10px] border-2 border-dashed px-6 py-10 transition-colors ${
-            dragging ? "border-accent bg-accent-soft/50" : "border-border bg-surface-2 hover:border-accent hover:bg-accent-soft/30"
+            dragging ? "border-brass bg-paper-2" : "border-line bg-paper-2 hover:border-brass hover:bg-paper"
           }`}
           onDragEnter={(event) => {
             event.preventDefault();
@@ -96,7 +96,7 @@ export function ImageUploader({ existingImageUrl, error }: ImageUploaderProps) {
           role="button"
           tabIndex={0}
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface text-accent shadow-card ring-1 ring-border">
+          <div className="flex h-12 w-12 items-center justify-center rounded-[8px] bg-card text-slate-light shadow-card ring-1 ring-line">
             <svg aria-hidden="true" className="h-6 w-6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
               <path
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
@@ -111,8 +111,8 @@ export function ImageUploader({ existingImageUrl, error }: ImageUploaderProps) {
       ) : (
         <div className="ui-panel mt-1 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element -- local preview or Cloudinary URL */}
-          <img alt="Post image preview" className="max-h-64 w-full bg-surface-2 object-contain" src={previewUrl} />
-          <div className="flex items-center justify-between gap-3 border-t border-border-soft px-4 py-3">
+          <img alt="Post image preview" className="max-h-64 w-full bg-paper-2 object-contain" src={previewUrl} />
+          <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-3">
             <div className="min-w-0">
               <p className="truncate text-[13.5px] font-medium text-text">{fileName ?? "Current image"}</p>
               {fileSize !== null && <p className="font-mono text-[12px] text-text-faint">{formatFileSize(fileSize)}</p>}

@@ -45,12 +45,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
     <AdminShell breadcrumb="Account" title="Settings">
       <div className="max-w-4xl space-y-4">
         {errorKey && (
-          <p className="rounded-[10px] border border-border bg-negative-soft px-4 py-3 text-[13.5px] text-negative" role="alert">
+          <p className="ui-alert-error px-4 py-3 text-[13.5px]" role="alert">
             {ERROR_COPY[errorKey] ?? "Something went wrong connecting LinkedIn."}
           </p>
         )}
         {justConnected && (
-          <p className="rounded-[10px] border border-border bg-positive-soft px-4 py-3 text-[13.5px] text-positive">
+          <p className="ui-alert-success px-4 py-3 text-[13.5px]">
             LinkedIn connected.
           </p>
         )}
@@ -60,12 +60,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           <p className="mt-2 text-[13.5px] text-text-muted">
             Each account uses its own LinkedIn developer app. Register this exact callback URL in that app before connecting:
           </p>
-          <code className="mt-3 block rounded-[8px] border border-border-soft bg-surface-2 px-3 py-2 font-mono text-[12px] break-all text-text">
+          <code className="mt-3 block rounded-[8px] border border-line bg-paper-2 px-3 py-2 font-mono text-[12px] break-all text-text">
             {redirectUri}
           </code>
 
           {app && (
-            <div className="mt-4 flex items-center justify-between rounded-[8px] border border-border bg-surface px-4 py-3">
+            <div className="mt-4 flex items-center justify-between rounded-[8px] border border-line bg-card px-4 py-3">
               <div>
                 <p className="text-[13.5px] font-medium text-text">
                   Client ID: <span className="font-mono">{app.clientId}</span>
@@ -87,11 +87,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           <h2 className="ui-panel-title">LinkedIn connection</h2>
 
           {connection ? (
-            <div className="mt-4 space-y-2 rounded-[8px] border border-border bg-surface px-4 py-3 text-[13.5px]">
+            <div className="mt-4 space-y-2 rounded-[8px] border border-line bg-card px-4 py-3 text-[13.5px]">
               <p className="flex items-center gap-2">
                 <span className="font-semibold text-text">Status:</span>
                 <span
-                  className={`inline-flex items-center gap-1.5 rounded-[7px] px-2 py-0.5 text-[11.5px] font-semibold ${
+                  className={`inline-flex items-center gap-1.5 rounded-[7px] px-2 py-1 font-mono text-[11.5px] font-medium ${
                     connectionTone === "positive"
                       ? "bg-positive-soft text-positive"
                       : connectionTone === "warn"
@@ -126,7 +126,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
               </div>
             </div>
           ) : (
-            <div className="mt-4 rounded-[8px] border border-border bg-surface px-4 py-3 text-[13.5px] text-text-muted">
+            <div className="mt-4 rounded-[8px] border border-line bg-card px-4 py-3 text-[13.5px] text-slate">
               <p>Not connected yet.</p>
               {app ? (
                 <Link className="ui-btn-primary mt-3" href="/api/linkedin/authorize">

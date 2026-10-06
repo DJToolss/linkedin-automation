@@ -91,7 +91,7 @@ export function TimezonePicker({ timeZones, value, onChange, name = "timezone", 
             <li key={zone} role="presentation">
               <button
                 aria-selected={zone === value}
-                className={`w-full px-3 py-2 text-left text-[13px] hover:bg-surface-2 ${zone === value ? "bg-accent-soft font-medium text-accent" : "text-text"}`}
+                className={`w-full px-3 py-2 text-left font-mono text-[13px] hover:bg-paper-2 ${zone === value ? "bg-paper-2 font-medium text-text" : "text-text"}`}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => chooseZone(zone)}
                 role="option"

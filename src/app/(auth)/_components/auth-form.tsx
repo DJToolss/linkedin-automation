@@ -37,7 +37,7 @@ export function LoginForm() {
       </button>
       <p className="text-center text-[13px] text-text-muted">
         New here?{" "}
-        <Link className="font-medium text-accent hover:text-accent-hover" href="/register">
+        <Link className="font-medium text-brass hover:text-brass-dark" href="/register">
           Create an account
         </Link>
         .
@@ -82,7 +82,7 @@ export function RegisterForm() {
       </button>
       <p className="text-center text-[13px] text-text-muted">
         Already have an account?{" "}
-        <Link className="font-medium text-accent hover:text-accent-hover" href="/login">
+        <Link className="font-medium text-brass hover:text-brass-dark" href="/login">
           Sign in
         </Link>
         .

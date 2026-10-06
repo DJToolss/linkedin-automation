@@ -20,14 +20,14 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
-const STATUS_TONE: Record<string, "positive" | "negative" | "warn"> = {
+const STATUS_TONE: Record<string, "positive" | "negative" | "warn" | "neutral"> = {
   posted: "positive",
   failed: "negative",
   requires_reconnect: "negative",
-  cancelled: "negative",
+  cancelled: "neutral",
   scheduled: "warn",
   publishing: "warn",
-  draft: "warn",
+  draft: "neutral",
 };
 
 function isEditable(status: string): boolean {
@@ -50,14 +50,16 @@ function StatusBadge({ status }: { status: string }) {
     positive: "bg-positive-soft text-positive",
     negative: "bg-negative-soft text-negative",
     warn: "bg-warn-soft text-warn",
+    neutral: "bg-neutral-badge text-slate",
   };
   const dots = {
     positive: "bg-positive",
     negative: "bg-negative",
     warn: "bg-warn",
+    neutral: "bg-slate-light",
   };
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-[7px] px-2 py-0.5 text-[11.5px] font-semibold ${tones[tone]}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-[7px] px-2 py-1 font-mono text-[11.5px] font-medium ${tones[tone]}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${dots[tone]}`} />
       {STATUS_LABEL[status] ?? status}
     </span>
