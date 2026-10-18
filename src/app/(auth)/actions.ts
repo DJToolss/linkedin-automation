@@ -9,7 +9,7 @@ import { authRateLimit } from "@/lib/auth/rate-limit";
 import { getDb } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 
-const passwordSchema = z.string().min(12, "Use at least 12 characters.").max(128, "Password is too long.").regex(/[a-z]/, "Include a lowercase letter.").regex(/[A-Z]/, "Include an uppercase letter.").regex(/[0-9]/, "Include a number.");
+const passwordSchema = z.string().min(6, "Use at least 6 characters.").max(128, "Password is too long.").regex(/[a-z]/, "Include a lowercase letter.").regex(/[A-Z]/, "Include an uppercase letter.").regex(/[0-9]/, "Include a number.");
 const registerSchema = z.object({ name: z.string().trim().min(2, "Enter your name.").max(100, "Name is too long."), email: z.string().trim().toLowerCase().email("Enter a valid email address."), password: passwordSchema });
 const loginSchema = z.object({ email: z.string().trim().toLowerCase().email("Enter a valid email address."), password: z.string().min(1, "Enter your password.").max(256) });
 

@@ -68,8 +68,8 @@ export function RegisterForm() {
         <label className="ui-label" htmlFor="password">
           Password
         </label>
-        <input autoComplete="new-password" className="ui-input mt-1" id="password" minLength={12} name="password" required type="password" />
-        <p className="ui-help">At least 12 characters, with upper/lowercase letters and a number.</p>
+        <input autoComplete="new-password" className="ui-input mt-1" id="password" minLength={6} name="password" required type="password" />
+        <p className="ui-help">At least 6 characters, with upper/lowercase letters and a number.</p>
         <FieldError errors={state.fieldErrors?.password} />
       </div>
       {state.error && (
