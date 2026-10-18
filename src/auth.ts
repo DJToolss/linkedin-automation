@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { authConfig } from "@/auth.config";
 import { getDb } from "@/lib/db";
-import { withDbRetry } from "@/lib/db/retry";
+import { formatDbError, withDbRetry } from "@/lib/db/retry";
 import { users } from "@/lib/db/schema";
 import { readAuthSecret, readSessionMaxAge } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -39,7 +39,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             .limit(1),
         ).catch((error) => {
           logger.error("credentials login database query failed", {
-            error: error instanceof Error ? error.message : String(error),
+            error: formatDbError(error),
           });
           return [] as { id: string; name: string | null; email: string; passwordHash: string | null }[];
         });

@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { getDb } from "@/lib/db";
-import { withDbRetry } from "@/lib/db/retry";
+import { getDatabaseHostForLogs, getDb } from "@/lib/db";
+import { formatDbError, withDbRetry } from "@/lib/db/retry";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
@@ -13,7 +13,11 @@ export async function GET() {
     await withDbRetry(() => getDb().execute(sql`select 1`));
     return NextResponse.json({ status: "ok" });
   } catch (error) {
-    logger.error("health check failed", { error: error instanceof Error ? error.message : String(error) });
+    logger.error("health check failed", {
+      error: formatDbError(error),
+      databaseHost: getDatabaseHostForLogs(),
+      hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+    });
     return NextResponse.json({ status: "error" }, { status: 503 });
   }
 }

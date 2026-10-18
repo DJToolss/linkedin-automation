@@ -1,27 +1,40 @@
 import "server-only";
 
-import { Pool, neonConfig } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-serverless";
-import ws from "ws";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 
 import { resolveDatabaseUrl } from "@/lib/db/url";
 import { getDatabaseEnv } from "@/lib/env";
 import * as schema from "./schema";
 
-let pool: Pool | undefined;
+let pool: pg.Pool | undefined;
 let db: ReturnType<typeof drizzle<typeof schema>> | undefined;
 
 /**
- * Long-running servers (Docker on EC2, Railway, etc.) use Neon's WebSocket pool.
- * The HTTP driver (`drizzle-orm/neon-http`) is better suited to edge/serverless.
+ * VPS / Docker (EC2, Railway, etc.): standard PostgreSQL wire protocol via `pg`.
+ * Neon's pooler endpoint (`*-pooler.*.neon.tech`) works with SSL from Node.
  */
 export function getDb() {
   if (!db) {
-    neonConfig.webSocketConstructor = ws;
-    pool = new Pool({ connectionString: resolveDatabaseUrl(getDatabaseEnv().DATABASE_URL) });
+    pool = new pg.Pool({
+      connectionString: resolveDatabaseUrl(getDatabaseEnv().DATABASE_URL),
+      max: 10,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 15_000,
+      ssl: { rejectUnauthorized: true },
+    });
     db = drizzle(pool, { schema });
   }
   return db;
+}
+
+/** Hostname only — safe for logs (no credentials). */
+export function getDatabaseHostForLogs(): string | null {
+  try {
+    return new URL(resolveDatabaseUrl(getDatabaseEnv().DATABASE_URL)).hostname;
+  } catch {
+    return null;
+  }
 }
 
 export type Database = ReturnType<typeof getDb>;
