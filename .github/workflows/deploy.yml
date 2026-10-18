@@ -63,6 +63,8 @@ jobs:
           docker push "$IMAGE:$IMAGE_TAG"
           docker push "$IMAGE:sha-$GITHUB_SHA"
           docker push "$IMAGE:latest"
+          DOCKER_BUILDKIT=1 docker build --target migrator -t "$IMAGE:$IMAGE_TAG-migrate" .
+          docker push "$IMAGE:$IMAGE_TAG-migrate"
 
       - name: Prune old images in ECR
         env:
@@ -194,6 +196,7 @@ jobs:
             EXPECTED_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
             log "Pulling $EXPECTED_IMAGE"
             docker pull "$EXPECTED_IMAGE"
+            docker pull "$EXPECTED_IMAGE-migrate"
 
             RESOLVED_IMAGE=$(docker compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["services"][sys.argv[1]]["image"])' "$BLUE_SERVICE")
             [ "$RESOLVED_IMAGE" = "$EXPECTED_IMAGE" ] || {
@@ -250,6 +253,12 @@ jobs:
               sleep 2
             done
             [ "$POSTGRES_READY" = true ] || { log "ERROR: Postgres not ready"; docker compose logs --tail=40 postgres || true; exit 1; }
+
+            log "Running database migrations"
+            if ! docker compose run --rm --no-deps db-migrate; then
+              log "ERROR: database migration failed"
+              exit 1
+            fi
 
             log "Starting $TARGET_SERVICE"
             if ! docker compose up -d --no-deps --no-build "$TARGET_SERVICE"; then

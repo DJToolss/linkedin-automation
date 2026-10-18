@@ -13,7 +13,8 @@ FROM base AS migrator
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json drizzle.config.ts ./
 COPY drizzle ./drizzle
-CMD ["npm", "run", "db:migrate"]
+COPY scripts/migrate.mjs ./scripts/migrate.mjs
+CMD ["node", "scripts/migrate.mjs"]
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
