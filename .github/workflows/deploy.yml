@@ -15,6 +15,7 @@ concurrency:
 env:
   AWS_REGION: ap-south-2
   ECR_REPOSITORY: linkedin-automation
+  ECR_REGISTRY: 825125930465.dkr.ecr.ap-south-2.amazonaws.com
 
 jobs:
   build-and-push:
@@ -65,7 +66,6 @@ jobs:
 
       - name: Prune old images in ECR
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ steps.version.outputs.version }}
           KEEP_COUNT: ${{ vars.ECR_KEEP_IMAGE_COUNT || '10' }}
         run: |
@@ -105,7 +105,32 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy using existing AWS Compose configuration
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup deployment directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 3m
+          script: |
+            set -e
+            sudo mkdir -p /opt/linkedin
+            sudo chown "$(whoami):$(whoami)" /opt/linkedin
+            sudo chmod 755 /opt/linkedin
+
+      - name: Copy docker-compose.yml to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml"
+          target: "/opt/linkedin"
+
+      - name: Execute remote deployment (blue/green)
         uses: appleboy/ssh-action@v1.0.3
         env:
           IMAGE_TAG: ${{ needs.build-and-push.outputs.version }}
@@ -120,42 +145,73 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 20m
+          command_timeout: 60m
           envs: IMAGE_TAG,ECR_REGISTRY,ECR_REPOSITORY,AWS_REGION,BLUE_SERVICE,GREEN_SERVICE,BLUE_PORT,GREEN_PORT,UPSTREAM_FILE,UPSTREAM_NAME
           script: |
-            bash -se <<'DEPLOY_SCRIPT'
-            set -euo pipefail
-            DEPLOY_USER=$(id -un)
-            DEPLOY_GROUP=$(id -gn)
-            sudo -n test -d /opt/linkedin || { echo "The deployment directory must exist and $DEPLOY_USER needs passwordless sudo"; exit 1; }
-            sudo -n chown "$DEPLOY_USER:$DEPLOY_GROUP" /opt/linkedin
-            sudo -n chmod u+rwx /opt/linkedin
+            set -e
             cd /opt/linkedin
-            sudo -n touch .deploy.lock
-            sudo -n chown "$DEPLOY_USER:$DEPLOY_GROUP" .deploy.lock
-            sudo -n chmod u+rw .deploy.lock
-            exec 9>.deploy.lock
-            flock -n 9 || { echo "Another deployment is running"; exit 1; }
+            export IMAGE_TAG ECR_REGISTRY ECR_REPOSITORY AWS_REGION
+
+            log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
+
+            http_code() {
+              local url="$1"
+              local code
+              code=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$url" 2>/dev/null || true)
+              echo "${code:-000}"
+            }
+
+            container_for_service() {
+              case "$1" in
+                web-blue) echo linkedin-web-blue ;;
+                web-green) echo linkedin-web-green ;;
+                *) echo "unknown-$1"; return 1 ;;
+              esac
+            }
+
+            write_upstream() {
+              local port="$1"
+              printf 'upstream %s { server 127.0.0.1:%s; }\n' "$UPSTREAM_NAME" "$port" | sudo tee "$UPSTREAM_FILE" >/dev/null
+            }
+
+            cleanup_web_slot() {
+              local service="$1"
+              docker compose stop "$service" 2>/dev/null || true
+              docker compose rm -f "$service" 2>/dev/null || true
+              local cname
+              cname=$(container_for_service "$service") || return 0
+              docker ps -aq --filter "name=^${cname}$" | xargs -r docker rm -f 2>/dev/null || true
+            }
+
+            log "Deploying IMAGE_TAG=$IMAGE_TAG"
 
             [[ "$UPSTREAM_NAME" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]
             [[ "$BLUE_PORT" =~ ^[0-9]+$ && "$GREEN_PORT" =~ ^[0-9]+$ && "$BLUE_PORT" != "$GREEN_PORT" ]]
             [ "$BLUE_SERVICE" != "$GREEN_SERVICE" ]
-            export IMAGE_TAG ECR_REGISTRY ECR_REPOSITORY
 
-            SERVICES=$(docker compose config --services)
-            for SERVICE in "$BLUE_SERVICE" "$GREEN_SERVICE"; do
-              printf '%s\n' "$SERVICES" | grep -Fxq "$SERVICE" || { echo "Missing Compose service: $SERVICE"; exit 1; }
-            done
-            sudo test -f "$UPSTREAM_FILE" || { echo "Configure the Nginx upstream file first: $UPSTREAM_FILE"; exit 1; }
-            sudo nginx -t
-            NGINX_CONFIG=$(sudo nginx -T 2>&1)
-            printf '%s\n' "$NGINX_CONFIG" | grep -Fq "# configuration file $UPSTREAM_FILE:" || { echo "Nginx must include $UPSTREAM_FILE"; exit 1; }
-            printf '%s\n' "$NGINX_CONFIG" | grep -Eq "proxy_pass[[:space:]]+http://$UPSTREAM_NAME;" || { echo "Nginx must proxy to $UPSTREAM_NAME"; exit 1; }
+            aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+            EXPECTED_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+            log "Pulling $EXPECTED_IMAGE"
+            docker pull "$EXPECTED_IMAGE"
+
+            RESOLVED_IMAGE=$(docker compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["services"][sys.argv[1]]["image"])' "$BLUE_SERVICE")
+            [ "$RESOLVED_IMAGE" = "$EXPECTED_IMAGE" ] || {
+              log "ERROR: compose image for $BLUE_SERVICE is $RESOLVED_IMAGE, expected $EXPECTED_IMAGE (set IMAGE_TAG in env)"
+              exit 1
+            }
+
+            if ! sudo test -f "$UPSTREAM_FILE"; then
+              log "Creating initial upstream file → blue port $BLUE_PORT"
+              write_upstream "$BLUE_PORT"
+            fi
 
             HAS_BLUE=false
             HAS_GREEN=false
             sudo grep -Eq "server[[:space:]]+127\.0\.0\.1:$BLUE_PORT[[:space:]]*;" "$UPSTREAM_FILE" && HAS_BLUE=true
             sudo grep -Eq "server[[:space:]]+127\.0\.0\.1:$GREEN_PORT[[:space:]]*;" "$UPSTREAM_FILE" && HAS_GREEN=true
+
+            INITIAL=false
             if [ "$HAS_BLUE" = true ] && [ "$HAS_GREEN" = false ]; then
               OLD_SERVICE="$BLUE_SERVICE"
               TARGET_SERVICE="$GREEN_SERVICE"
@@ -164,97 +220,95 @@ jobs:
               OLD_SERVICE="$GREEN_SERVICE"
               TARGET_SERVICE="$BLUE_SERVICE"
               TARGET_PORT="$BLUE_PORT"
+            elif [ "$HAS_BLUE" = false ] && [ "$HAS_GREEN" = false ]; then
+              log "Upstream has no blue/green port — first deploy to $GREEN_SERVICE"
+              TARGET_SERVICE="$GREEN_SERVICE"
+              TARGET_PORT="$GREEN_PORT"
+              OLD_SERVICE="$BLUE_SERVICE"
+              INITIAL=true
             else
-              echo "Upstream must point to exactly one configured blue/green port"
+              log "ERROR: upstream must point to exactly one of ports $BLUE_PORT or $GREEN_PORT"
               exit 1
             fi
 
-            aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
-            EXPECTED_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-            RESOLVED_IMAGE=$(docker compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["services"][sys.argv[1]]["image"])' "$TARGET_SERVICE")
-            [ "$RESOLVED_IMAGE" = "$EXPECTED_IMAGE" ] || { echo "Compose target image must resolve to $EXPECTED_IMAGE; use IMAGE_TAG in the existing Compose file"; exit 1; }
-            docker compose pull "$TARGET_SERVICE"
+            TARGET_CONTAINER=$(container_for_service "$TARGET_SERVICE")
+            OLD_CONTAINER=$(container_for_service "$OLD_SERVICE")
 
-            BACKUP=$(mktemp /opt/linkedin/nginx-upstream.XXXXXX)
-            sudo cp "$UPSTREAM_FILE" "$BACKUP"
-            SWITCHED=false
-            rollback() {
-              STATUS=$?
-              trap - EXIT
-              if [ "$STATUS" -ne 0 ]; then
-                docker compose logs --no-color --tail=100 "$TARGET_SERVICE" || true
-                if [ "$SWITCHED" = true ]; then
-                  if ! { sudo cp "$BACKUP" "$UPSTREAM_FILE" && sudo nginx -t && sudo systemctl reload nginx; }; then
-                    echo "Rollback failed; both containers retained. Backup: $BACKUP"
-                    exit "$STATUS"
-                  fi
-                fi
-                docker compose stop "$TARGET_SERVICE" || true
-              fi
-              sudo rm -f "$BACKUP"
-              exit "$STATUS"
-            }
-            trap rollback EXIT
+            sudo cp "$UPSTREAM_FILE" "${UPSTREAM_FILE}.backup"
 
-            # Blue/green rolls use --no-deps on the web service, so Postgres must be started explicitly.
-            echo "Ensuring Postgres is running…"
+            log "Target=$TARGET_SERVICE ($TARGET_PORT), old=$OLD_SERVICE, initial=$INITIAL"
+            cleanup_web_slot "$TARGET_SERVICE"
+
+            log "Starting Postgres"
             docker compose up -d postgres
             POSTGRES_READY=false
-            for ATTEMPT in $(seq 1 45); do
-              HEALTH=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' linkedin-postgres 2>/dev/null || echo "missing")
-              if [ "$HEALTH" = "healthy" ] || [ "$HEALTH" = "running" ]; then
-                if docker compose exec -T postgres pg_isready -q 2>/dev/null; then
-                  POSTGRES_READY=true
-                  break
-                fi
+            for i in $(seq 1 45); do
+              if docker compose exec -T postgres pg_isready -q 2>/dev/null; then
+                POSTGRES_READY=true
+                break
               fi
               sleep 2
             done
-            [ "$POSTGRES_READY" = true ] || { echo "Postgres is not ready (linkedin-postgres)"; docker compose logs --tail=50 postgres || true; exit 1; }
+            [ "$POSTGRES_READY" = true ] || { log "ERROR: Postgres not ready"; docker compose logs --tail=40 postgres || true; exit 1; }
 
-            docker compose up -d --no-deps --no-build "$TARGET_SERVICE"
+            log "Starting $TARGET_SERVICE"
+            if ! docker compose up -d --no-deps --no-build "$TARGET_SERVICE"; then
+              log "ERROR: failed to start $TARGET_SERVICE"
+              docker compose logs --tail=80 "$TARGET_SERVICE" || true
+              exit 1
+            fi
+
+            log "Waiting for health on 127.0.0.1:$TARGET_PORT/api/health"
             HEALTHY=false
-            for ATTEMPT in $(seq 1 30); do
-              STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$TARGET_PORT/api/health" || true)
-              if [ "$STATUS" = 200 ]; then
+            for i in $(seq 1 45); do
+              CODE=$(http_code "http://127.0.0.1:${TARGET_PORT}/api/health")
+              if [ "$CODE" = "200" ]; then
                 HEALTHY=true
+                log "Health OK (attempt $i)"
                 break
               fi
+              log "Health attempt $i/45: HTTP $CODE"
               sleep 4
             done
-            [ "$HEALTHY" = true ] || { echo "Target failed health check"; exit 1; }
+            if [ "$HEALTHY" != true ]; then
+              log "ERROR: $TARGET_SERVICE failed health check"
+              docker logs --tail=100 "$TARGET_CONTAINER" 2>&1 || true
+              cleanup_web_slot "$TARGET_SERVICE"
+              exit 1
+            fi
 
-            SWITCHED=true
-            printf 'upstream %s { server 127.0.0.1:%s; }\n' "$UPSTREAM_NAME" "$TARGET_PORT" | sudo tee "$UPSTREAM_FILE" >/dev/null
+            log "Switching nginx upstream to port $TARGET_PORT"
+            write_upstream "$TARGET_PORT"
             sudo nginx -t
             sudo systemctl reload nginx
 
-            trap - EXIT
-            sudo rm -f "$BACKUP"
-            sleep 30
-
-            OLD_IMAGE=$(docker compose images -q "$OLD_SERVICE" 2>/dev/null | head -n 1 || true)
-            docker compose stop "$OLD_SERVICE"
-            docker compose rm -f "$OLD_SERVICE" || true
-
-            echo "Pruning previous app images on EC2…"
-            REPO="$ECR_REGISTRY/$ECR_REPOSITORY"
-            if [ -n "$OLD_IMAGE" ]; then
-              docker rmi "$OLD_IMAGE" 2>/dev/null || true
+            if [ "$INITIAL" != true ] && docker ps -a --format '{{.Names}}' | grep -qx "$OLD_CONTAINER"; then
+              log "Stopping old slot $OLD_SERVICE"
+              docker compose stop "$OLD_SERVICE" 2>/dev/null || true
+              docker compose rm -f "$OLD_SERVICE" 2>/dev/null || true
             fi
-            CURRENT_IMAGE_ID=$(docker image inspect -f '{{.Id}}' "$EXPECTED_IMAGE" 2>/dev/null || true)
-            mapfile -t REPO_IMAGE_IDS < <(docker images "$REPO" -q | sort -u)
-            for IMAGE_ID in "${REPO_IMAGE_IDS[@]}"; do
-              [ -n "$CURRENT_IMAGE_ID" ] && [ "$IMAGE_ID" = "$CURRENT_IMAGE_ID" ] && continue
-              if docker ps -a --filter "ancestor=$IMAGE_ID" -q | grep -q .; then
-                continue
-              fi
-              docker rmi "$IMAGE_ID" 2>/dev/null || true
-            done
-            docker container prune -f || true
-            docker image prune -f || true
-            docker builder prune -af --filter "until=72h" || true
 
-            echo "Deployed $EXPECTED_IMAGE to $TARGET_SERVICE (stopped+removed $OLD_SERVICE)"
-            docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}' || true
-            DEPLOY_SCRIPT
+            log "Cleaning old local images (keep $IMAGE_TAG and latest)"
+            REPO="$ECR_REGISTRY/$ECR_REPOSITORY"
+            mapfile -t OLD_IDS < <(
+              docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' \
+                | grep "^${REPO}:" \
+                | grep -v ":${IMAGE_TAG} " \
+                | grep -v ':latest ' \
+                | awk '{print $2}' \
+                | sort -u
+            )
+            for id in "${OLD_IDS[@]:-}"; do
+              [ -n "$id" ] || continue
+              docker rmi "$id" 2>/dev/null || true
+            done
+            docker image prune -f >/dev/null || true
+
+            if ! docker ps --format '{{.Names}}' | grep -qx "$TARGET_CONTAINER"; then
+              log "ERROR: $TARGET_CONTAINER is not running after deploy"
+              docker ps -a || true
+              exit 1
+            fi
+
+            log "Deployment complete: $EXPECTED_IMAGE on $TARGET_SERVICE"
+            docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
