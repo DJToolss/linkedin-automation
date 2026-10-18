@@ -158,6 +158,22 @@ jobs:
             }
             trap rollback EXIT
 
+            # Blue/green rolls use --no-deps on the web service, so Postgres must be started explicitly.
+            echo "Ensuring Postgres is running…"
+            docker compose up -d postgres
+            POSTGRES_READY=false
+            for ATTEMPT in $(seq 1 45); do
+              HEALTH=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' linkedin-postgres 2>/dev/null || echo "missing")
+              if [ "$HEALTH" = "healthy" ] || [ "$HEALTH" = "running" ]; then
+                if docker compose exec -T postgres pg_isready -q 2>/dev/null; then
+                  POSTGRES_READY=true
+                  break
+                fi
+              fi
+              sleep 2
+            done
+            [ "$POSTGRES_READY" = true ] || { echo "Postgres is not ready (linkedin-postgres)"; docker compose logs --tail=50 postgres || true; exit 1; }
+
             docker compose up -d --no-deps --no-build "$TARGET_SERVICE"
             HEALTHY=false
             for ATTEMPT in $(seq 1 30); do
