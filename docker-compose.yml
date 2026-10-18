@@ -64,6 +64,18 @@ services:
     logging: *default-logging
     restart: unless-stopped
 
+  db-migrate:
+    image: ${ECR_REGISTRY:-825125930465.dkr.ecr.ap-south-2.amazonaws.com}/${ECR_REPOSITORY:-linkedin-automation}:${IMAGE_TAG:-latest}-migrate
+    env_file:
+      - .env
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_SSL: "false"
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   web-blue:
     <<: *web
     container_name: linkedin-web-blue
