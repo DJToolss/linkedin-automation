@@ -70,9 +70,9 @@ export async function listScheduledPostsForPublish(): Promise<Array<{ id: string
 export async function startPublishScheduler(): Promise<void> {
   const globalState = globalThis as SchedulerGlobal;
   if (globalState.__publishSchedulerStarted) return;
-  globalState.__publishSchedulerStarted = true;
 
   const rows = await listScheduledPostsForPublish();
+  globalState.__publishSchedulerStarted = true;
   for (const row of rows) {
     if (row.scheduledAt) schedulePostPublish(row.id, row.scheduledAt);
   }

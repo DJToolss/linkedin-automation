@@ -2,6 +2,8 @@ import "server-only";
 
 import { z } from "zod";
 
+import { resolveDatabaseConnectionString } from "@/lib/db/connection-string";
+
 const base64Pattern = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
 function isSupportedEncryptionKey(value: string): boolean {
@@ -70,7 +72,9 @@ const authEnvSchema = runtimeEnvSchema.pick({
   NEXTAUTH_EXPIRY: true,
   NEXTAUTH_URL: true,
 });
-const databaseEnvSchema = runtimeEnvSchema.pick({ DATABASE_URL: true });
+const databaseEnvSchema = z.object({
+  DATABASE_URL: z.string().url(),
+});
 const encryptionEnvSchema = runtimeEnvSchema.pick({ ENCRYPTION_KEY: true });
 const appUrlEnvSchema = runtimeEnvSchema.pick({ NEXT_PUBLIC_APP_URL: true });
 const cronEnvSchema = runtimeEnvSchema.pick({ CRON_SECRET: true });
@@ -100,7 +104,7 @@ export function getAuthEnv() {
 }
 
 export function getDatabaseEnv() {
-  return databaseEnvSchema.parse({ DATABASE_URL: process.env.DATABASE_URL });
+  return databaseEnvSchema.parse({ DATABASE_URL: resolveDatabaseConnectionString() });
 }
 
 export function getEncryptionEnv() {
@@ -130,7 +134,7 @@ export function getCloudinaryEnv() {
 export function getEnv(): RuntimeEnv {
   return runtimeEnvSchema.parse({
     NODE_ENV: process.env.NODE_ENV,
-    DATABASE_URL: process.env.DATABASE_URL,
+    DATABASE_URL: resolveDatabaseConnectionString(),
     NEXTAUTH_SECRET: readAuthSecret(),
     NEXTAUTH_EXPIRY: process.env.NEXTAUTH_EXPIRY,
     NEXTAUTH_URL: readAuthUrl(),
