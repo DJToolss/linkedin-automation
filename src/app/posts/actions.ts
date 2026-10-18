@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
+import { isTransientDbError } from "@/lib/db/retry";
 import { deletePostImage, duplicatePostImage, uploadPostImage } from "@/lib/cloudinary";
 import { composeLinkedInCommentary, hasPostBody } from "@/lib/linkedin/commentary-format";
 import { getConnectionSummary } from "@/lib/linkedin/connection";
@@ -151,16 +152,48 @@ export async function createPostAction(_: PostFormState, formData: FormData): Pr
 
   const image = await readImageFile(formData);
   if (image.kind === "error") return { fieldErrors: { image: [image.message] } };
-  const uploaded = image.kind === "ok" ? await uploadPostImage(userId, image.buffer, image.mime) : null;
 
-  const created = await createPost(userId, {
-    ...toPostInput(parsed.data, schedule.scheduledAtUtc),
-    imageUrl: uploaded?.url ?? null,
-    imagePublicId: uploaded?.publicId ?? null,
-  });
+  let created: { id: string } | null;
+  try {
+    created = await createPost(userId, {
+      ...toPostInput(parsed.data, schedule.scheduledAtUtc),
+      imageUrl: null,
+      imagePublicId: null,
+    });
+  } catch (error) {
+    return {
+      error: isTransientDbError(error)
+        ? "Could not reach the database. Check your connection and try again."
+        : postNow
+          ? "Could not publish the post. Please try again."
+          : "Could not schedule the post. Please try again.",
+    };
+  }
   if (!created) {
-    if (uploaded) await deletePostImage(uploaded.publicId);
     return { error: postNow ? "Could not publish the post. Please try again." : "Could not schedule the post. Please try again." };
+  }
+
+  if (image.kind === "ok") {
+    try {
+      const uploaded = await uploadPostImage(userId, image.buffer, image.mime);
+      const updated = await updatePendingPost(userId, created.id, {
+        ...toPostInput(parsed.data, schedule.scheduledAtUtc),
+        imageUrl: uploaded.url,
+        imagePublicId: uploaded.publicId,
+      });
+      if (!updated) {
+        await deletePostImage(uploaded.publicId);
+        await deletePendingPost(userId, created.id);
+        return { error: "Could not attach the image. Please try again." };
+      }
+    } catch (error) {
+      await deletePendingPost(userId, created.id);
+      return {
+        error: isTransientDbError(error)
+          ? "Could not save the post image. Check your connection and try again."
+          : "Could not save the post image. Please try again.",
+      };
+    }
   }
 
   if (postNow) {
