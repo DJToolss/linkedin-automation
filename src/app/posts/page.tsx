@@ -6,8 +6,8 @@ import { PostsPagination } from "@/app/posts/_components/posts-pagination";
 import { deletePostAction, publishNowAction } from "@/app/posts/actions";
 import { requireAuthenticatedUserId } from "@/lib/auth/session";
 import { postListPreview } from "@/lib/linkedin/commentary-format";
-import { DEFAULT_TIMEZONE } from "@/lib/posts/constants";
-import { EDITABLE_STATUSES, countPostsForUserByTab, listPostsForUserPaginated, type Post } from "@/lib/posts/posts";
+import { DEFAULT_TIMEZONE, POSTS_PAGE_SIZE } from "@/lib/posts/constants";
+import { EDITABLE_STATUSES, getPostsTabCounts, listPostsForUserPaginated, type Post } from "@/lib/posts/posts";
 import { formatZonedDateTime } from "@/lib/time/timezone";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -136,11 +136,15 @@ export default async function PostsPage({
   const activeTab = resolveTab(tabParam);
   const requestedPage = parsePage(pageParam);
 
-  const [scheduledCount, postedCount, paginated] = await Promise.all([
-    countPostsForUserByTab(userId, "scheduled"),
-    countPostsForUserByTab(userId, "posted"),
-    listPostsForUserPaginated(userId, activeTab, requestedPage),
-  ]);
+  const tabCounts = await getPostsTabCounts(userId);
+  const paginated = await listPostsForUserPaginated(
+    userId,
+    activeTab,
+    requestedPage,
+    POSTS_PAGE_SIZE,
+    activeTab === "posted" ? tabCounts.posted : tabCounts.scheduled,
+  );
+  const { scheduled: scheduledCount, posted: postedCount } = tabCounts;
 
   return (
     <AdminShell

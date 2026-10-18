@@ -8,6 +8,7 @@ if (process.env.npm_lifecycle_event === "build") {
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  serverExternalPackages: ["ws", "@neondatabase/serverless"],
   // Railway/Vercel inject secrets at build time for the proxy bundle. Reading
   // them here keeps middleware from starting with undefined auth env values.
   env: {

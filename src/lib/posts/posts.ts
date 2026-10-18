@@ -1,8 +1,9 @@
 import "server-only";
 
-import { and, count, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
+import { withDbRetry } from "@/lib/db/retry";
 import { posts } from "@/lib/db/schema";
 import { POSTS_PAGE_SIZE } from "@/lib/posts/constants";
 
@@ -48,8 +49,28 @@ export async function listPendingScheduledAtIsosForUser(userId: string): Promise
 }
 
 export async function countPostsForUserByTab(userId: string, tab: PostsListTab): Promise<number> {
-  const [row] = await getDb().select({ total: count() }).from(posts).where(tabFilter(userId, tab));
-  return Number(row?.total ?? 0);
+  return withDbRetry(async () => {
+    const [row] = await getDb().select({ total: count() }).from(posts).where(tabFilter(userId, tab));
+    return Number(row?.total ?? 0);
+  });
+}
+
+/** Both tab badge counts in one round trip (avoids parallel duplicate counts on /posts). */
+export async function getPostsTabCounts(userId: string): Promise<{ scheduled: number; posted: number }> {
+  return withDbRetry(async () => {
+    const [row] = await getDb()
+      .select({
+        posted: sql<number>`count(*) filter (where ${posts.status} = 'posted')`,
+        scheduled: sql<number>`count(*) filter (where ${posts.status} != 'posted' and ${posts.status} != 'cancelled')`,
+      })
+      .from(posts)
+      .where(eq(posts.userId, userId));
+
+    return {
+      posted: Number(row?.posted ?? 0),
+      scheduled: Number(row?.scheduled ?? 0),
+    };
+  });
 }
 
 export async function listPostsForUserPaginated(
@@ -57,8 +78,9 @@ export async function listPostsForUserPaginated(
   tab: PostsListTab,
   page: number,
   pageSize: number = POSTS_PAGE_SIZE,
+  knownTotal?: number,
 ): Promise<PaginatedPosts> {
-  const total = await countPostsForUserByTab(userId, tab);
+  const total = knownTotal ?? (await countPostsForUserByTab(userId, tab));
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safePage = Math.min(Math.max(1, page), totalPages);
   const offset = (safePage - 1) * pageSize;
@@ -66,13 +88,15 @@ export async function listPostsForUserPaginated(
   const items =
     total === 0
       ? []
-      : await getDb()
-          .select()
-          .from(posts)
-          .where(tabFilter(userId, tab))
-          .orderBy(...tabOrder(tab))
-          .limit(pageSize)
-          .offset(offset);
+      : await withDbRetry(() =>
+          getDb()
+            .select()
+            .from(posts)
+            .where(tabFilter(userId, tab))
+            .orderBy(...tabOrder(tab))
+            .limit(pageSize)
+            .offset(offset),
+        );
 
   return { items, total, page: safePage, pageSize, totalPages };
 }
@@ -117,21 +141,23 @@ export type PostInput = {
 };
 
 export async function createPost(userId: string, input: PostInput): Promise<{ id: string } | null> {
-  const [created] = await getDb()
-    .insert(posts)
-    .values({
-      userId,
-      heading: input.heading,
-      subHeading: input.subHeading,
-      content: input.content,
-      imageUrl: input.imageUrl,
-      imagePublicId: input.imagePublicId,
-      scheduledAt: input.scheduledAt,
-      timezone: input.timezone,
-      status: "scheduled",
-    })
-    .returning({ id: posts.id });
-  return created ?? null;
+  return withDbRetry(async () => {
+    const [created] = await getDb()
+      .insert(posts)
+      .values({
+        userId,
+        heading: input.heading,
+        subHeading: input.subHeading,
+        content: input.content,
+        imageUrl: input.imageUrl,
+        imagePublicId: input.imagePublicId,
+        scheduledAt: input.scheduledAt,
+        timezone: input.timezone,
+        status: "scheduled",
+      })
+      .returning({ id: posts.id });
+    return created ?? null;
+  });
 }
 
 /**
@@ -155,22 +181,24 @@ export async function duplicatePostedPost(userId: string, sourcePostId: string, 
  * asset once this has returned a row (implementation.MD Phase 4 item 4).
  */
 export async function updatePendingPost(userId: string, postId: string, input: PostInput): Promise<{ id: string } | null> {
-  const [updated] = await getDb()
-    .update(posts)
-    .set({
-      heading: input.heading,
-      subHeading: input.subHeading,
-      content: input.content,
-      imageUrl: input.imageUrl,
-      imagePublicId: input.imagePublicId,
-      scheduledAt: input.scheduledAt,
-      timezone: input.timezone,
-      status: "scheduled",
-      updatedAt: new Date(),
-    })
-    .where(and(eq(posts.id, postId), eq(posts.userId, userId), inArray(posts.status, [...EDITABLE_STATUSES])))
-    .returning({ id: posts.id });
-  return updated ?? null;
+  return withDbRetry(async () => {
+    const [updated] = await getDb()
+      .update(posts)
+      .set({
+        heading: input.heading,
+        subHeading: input.subHeading,
+        content: input.content,
+        imageUrl: input.imageUrl,
+        imagePublicId: input.imagePublicId,
+        scheduledAt: input.scheduledAt,
+        timezone: input.timezone,
+        status: "scheduled",
+        updatedAt: new Date(),
+      })
+      .where(and(eq(posts.id, postId), eq(posts.userId, userId), inArray(posts.status, [...EDITABLE_STATUSES])))
+      .returning({ id: posts.id });
+    return updated ?? null;
+  });
 }
 
 /**
