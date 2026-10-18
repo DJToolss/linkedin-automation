@@ -63,6 +63,44 @@ jobs:
           docker push "$IMAGE:sha-$GITHUB_SHA"
           docker push "$IMAGE:latest"
 
+      - name: Prune old images in ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ steps.version.outputs.version }}
+          KEEP_COUNT: ${{ vars.ECR_KEEP_IMAGE_COUNT || '10' }}
+        run: |
+          set -euo pipefail
+          REPO="$ECR_REPOSITORY"
+          KEEP=$((KEEP_COUNT))
+          [ "$KEEP" -ge 3 ] || KEEP=3
+
+          mapfile -t TAGS < <(
+            aws ecr describe-images --region "$AWS_REGION" --repository-name "$REPO" \
+              --query 'sort_by(imageDetails,& imagePushedAt)[].imageTags[]' --output text \
+            | tr '\t' '\n' | grep -E '^1\.0\.[0-9]+-[0-9]+$' || true
+          )
+
+          PROTECT=$(printf '%s\n' "$IMAGE_TAG" "latest" | sort -u)
+          DELETE=()
+          for TAG in "${TAGS[@]}"; do
+            if printf '%s\n' "$PROTECT" | grep -Fxq "$TAG"; then
+              continue
+            fi
+            DELETE+=("$TAG")
+          done
+
+          if [ "${#DELETE[@]}" -le "$KEEP" ]; then
+            echo "ECR has ${#DELETE[@]} version tag(s) to consider; keeping all (limit $KEEP)."
+            exit 0
+          fi
+
+          TO_REMOVE=("${DELETE[@]:0:${#DELETE[@]}-KEEP}")
+          echo "Removing ${#TO_REMOVE[@]} old ECR tag(s): ${TO_REMOVE[*]}"
+          for TAG in "${TO_REMOVE[@]}"; do
+            aws ecr batch-delete-image --region "$AWS_REGION" --repository-name "$REPO" \
+              --image-ids "imageTag=$TAG" >/dev/null || true
+          done
+
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -194,15 +232,28 @@ jobs:
             trap - EXIT
             sudo rm -f "$BACKUP"
             sleep 30
+
+            OLD_IMAGE=$(docker compose images -q "$OLD_SERVICE" 2>/dev/null | head -n 1 || true)
             docker compose stop "$OLD_SERVICE"
             docker compose rm -f "$OLD_SERVICE" || true
 
-            # Drop unused containers/images left by prior blue-green rolls.
-            # Running $TARGET_SERVICE (and its image) are kept.
-            echo "Pruning unused Docker containers and images…"
+            echo "Pruning previous app images on EC2…"
+            REPO="$ECR_REGISTRY/$ECR_REPOSITORY"
+            if [ -n "$OLD_IMAGE" ]; then
+              docker rmi "$OLD_IMAGE" 2>/dev/null || true
+            fi
+            CURRENT_IMAGE_ID=$(docker image inspect -f '{{.Id}}' "$EXPECTED_IMAGE" 2>/dev/null || true)
+            mapfile -t REPO_IMAGE_IDS < <(docker images "$REPO" -q | sort -u)
+            for IMAGE_ID in "${REPO_IMAGE_IDS[@]}"; do
+              [ -n "$CURRENT_IMAGE_ID" ] && [ "$IMAGE_ID" = "$CURRENT_IMAGE_ID" ] && continue
+              if docker ps -a --filter "ancestor=$IMAGE_ID" -q | grep -q .; then
+                continue
+              fi
+              docker rmi "$IMAGE_ID" 2>/dev/null || true
+            done
             docker container prune -f || true
-            docker image prune -af || true
-            docker builder prune -f || true
+            docker image prune -f || true
+            docker builder prune -af --filter "until=72h" || true
 
             echo "Deployed $EXPECTED_IMAGE to $TARGET_SERVICE (stopped+removed $OLD_SERVICE)"
             docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}' || true
