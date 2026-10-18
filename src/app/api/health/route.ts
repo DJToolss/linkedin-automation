@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+import { resolveDatabaseConnectionString } from "@/lib/db/connection-string";
 import { getDatabaseHostForLogs, getDb } from "@/lib/db";
 import { formatDbError, withDbRetry } from "@/lib/db/retry";
 import { logger } from "@/lib/logger";
@@ -16,7 +17,14 @@ export async function GET() {
     logger.error("health check failed", {
       error: formatDbError(error),
       databaseHost: getDatabaseHostForLogs(),
-      hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+      databaseConfigured: (() => {
+        try {
+          resolveDatabaseConnectionString();
+          return true;
+        } catch {
+          return false;
+        }
+      })(),
     });
     return NextResponse.json({ status: "error" }, { status: 503 });
   }

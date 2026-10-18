@@ -5,7 +5,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getAppUrlEnv, getAuthEnv, getCronEnv, getDatabaseEnv, getEncryptionEnv, getEnv } from "@/lib/env";
 
 const VALID: Record<string, string> = {
-  DATABASE_URL: "postgres://user:pass@localhost:5432/db",
+  POSTGRES_USER: "user",
+  POSTGRES_PASSWORD: "pass",
+  POSTGRES_DB: "db",
+  DATABASE_HOST: "localhost",
+  DATABASE_PORT: "5432",
+  DATABASE_SSL: "false",
   NEXTAUTH_SECRET: "a".repeat(32),
   NEXTAUTH_URL: "http://localhost:3000",
   NEXT_PUBLIC_APP_URL: "http://localhost:3000",
@@ -18,6 +23,7 @@ const VALID: Record<string, string> = {
 
 function resetEnv() {
   for (const key of Object.keys(VALID)) delete process.env[key];
+  delete process.env.DATABASE_URL;
   delete process.env.NEXTAUTH_EXPIRY;
 }
 
@@ -33,13 +39,15 @@ describe("env", () => {
   });
 
   it("rejects a missing required variable and never echoes any variable's value", () => {
-    delete process.env.DATABASE_URL;
+    delete process.env.POSTGRES_USER;
+    delete process.env.POSTGRES_PASSWORD;
+    delete process.env.POSTGRES_DB;
     try {
       getEnv();
       expect.unreachable("expected getEnv() to throw");
     } catch (error) {
       const message = String(error);
-      expect(message).toContain("DATABASE_URL");
+      expect(message.toLowerCase()).toMatch(/database|postgres/);
       for (const value of Object.values(VALID)) {
         if (value.length > 8) expect(message).not.toContain(value);
       }
@@ -78,6 +86,12 @@ describe("env", () => {
   it("lets a scoped getter succeed even when unrelated variables are missing", () => {
     delete process.env.CLOUDINARY_API_KEY;
     expect(() => getDatabaseEnv()).not.toThrow();
+  });
+
+  it("still accepts a explicit DATABASE_URL", () => {
+    delete process.env.POSTGRES_USER;
+    process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/db";
+    expect(getDatabaseEnv().DATABASE_URL).toContain("localhost:5432/db");
   });
 
   it("rejects a non-URL NEXT_PUBLIC_APP_URL", () => {

@@ -14,8 +14,13 @@ x-web: &web
     NODE_ENV: production
     HOSTNAME: 0.0.0.0
     PORT: "3000"
+    DATABASE_HOST: postgres
+    DATABASE_SSL: "false"
     NEXTAUTH_URL: ${NEXTAUTH_URL:-https://linkedin.anytimerequest.com}
     NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://linkedin.anytimerequest.com}
+  depends_on:
+    postgres:
+      condition: service_healthy
   logging: *default-logging
   restart: unless-stopped
   init: true
@@ -34,6 +39,28 @@ x-web: &web
     start_period: 40s
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: linkedin-postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-linkedin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-linkedin}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+    restart: unless-stopped
+
   web-blue:
     <<: *web
     container_name: linkedin-web-blue
@@ -45,3 +72,6 @@ services:
     container_name: linkedin-web-green
     ports:
       - "127.0.0.1:3003:3000"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,33 @@
+# Local development: Postgres only. Run Next.js on the host (`npm run dev`).
+#
+#   docker compose -f docker-compose.dev.yml up -d --force-recreate
+#   (recreate if localhost:5432 is not reachable — check with: docker port linkedin-postgres-dev)
+#   npm run db:migrate
+#   npm run dev
+#
+# Uses POSTGRES_* / DATABASE_* from `.env` with DATABASE_HOST=localhost.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: linkedin-postgres-dev
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-linkedin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-linkedin}
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  postgres_dev_data:

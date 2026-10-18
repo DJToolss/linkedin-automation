@@ -1,12 +1,17 @@
 import { loadEnvConfig } from "@next/env";
 import { defineConfig } from "drizzle-kit";
 
+import { resolveDatabaseConnectionString } from "./src/lib/db/connection-string";
+
 loadEnvConfig(process.cwd());
 
-const databaseUrl = process.env.DATABASE_URL;
-
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL must be set before running Drizzle commands.");
+let databaseUrl: string;
+try {
+  databaseUrl = resolveDatabaseConnectionString();
+} catch {
+  throw new Error(
+    "Database is not configured. Set DATABASE_URL or POSTGRES_USER, POSTGRES_PASSWORD, and POSTGRES_DB before running Drizzle.",
+  );
 }
 
 export default defineConfig({

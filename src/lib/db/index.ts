@@ -3,6 +3,7 @@ import "server-only";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
+import { pgPoolSsl } from "@/lib/db/connection-string";
 import { resolveDatabaseUrl } from "@/lib/db/url";
 import { getDatabaseEnv } from "@/lib/env";
 import * as schema from "./schema";
@@ -16,12 +17,13 @@ let db: ReturnType<typeof drizzle<typeof schema>> | undefined;
  */
 export function getDb() {
   if (!db) {
+    const connectionString = resolveDatabaseUrl(getDatabaseEnv().DATABASE_URL);
     pool = new pg.Pool({
-      connectionString: resolveDatabaseUrl(getDatabaseEnv().DATABASE_URL),
+      connectionString,
       max: 10,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 15_000,
-      ssl: { rejectUnauthorized: true },
+      ssl: pgPoolSsl(connectionString),
     });
     db = drizzle(pool, { schema });
   }

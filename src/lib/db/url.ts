@@ -8,9 +8,6 @@ export function resolveDatabaseUrl(raw: string): string {
   try {
     const url = new URL(raw);
     url.searchParams.delete("channel_binding");
-    if (!url.searchParams.has("sslmode")) {
-      url.searchParams.set("sslmode", "require");
-    }
     return url.toString();
   } catch {
     return raw;
